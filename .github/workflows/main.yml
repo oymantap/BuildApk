@@ -1,0 +1,179 @@
+name: Build_Jam_Simpel_Modern
+
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create Modern Structure
+        run: |
+          rm -rf app/src
+          # Buat folder untuk kode dan gambar ikon
+          mkdir -p app/src/main/java/com/rycl/jam
+          mkdir -p app/src/main/res/drawable
+          
+          # 1. Settings (Identitas Tetap)
+          cat <<EOT > settings.gradle
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "JamSimpel"
+          include ':app'
+          EOT
+
+          # 2. Build File (Pakai Material Design Library)
+          cat <<EOT > app/build.gradle
+          plugins { id 'com.android.application' version '8.2.2' }
+          android {
+              namespace 'com.rycl.jam'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.rycl.jam" # KUNCI DI SINI BIAR BISA NIMPA
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1214
+                  versionName "12.14"
+              }
+          }
+          dependencies {
+              implementation 'com.google.android.material:material:1.11.0'
+          }
+          EOT
+
+          # 3. Manifest (Pakai Ikon Custom Kamu)
+          cat <<EOT > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application 
+                  android:label="Jam Simpel" 
+                  android:icon="@drawable/icon_app"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOT
+
+          # 4. Kode Java (Modern UI + Set Timer + Sound)
+          cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
+          package com.rycl.jam;
+          import android.app.Activity;
+          import android.os.*;
+          import android.view.*;
+          import android.widget.*;
+          import android.graphics.Color;
+          import android.graphics.drawable.GradientDrawable;
+          import android.media.Ringtone;
+          import android.media.RingtoneManager;
+          import android.net.Uri;
+
+          public class MainActivity extends Activity {
+              private CountDownTimer timer;
+              private TextView timerDisplay;
+              
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  
+                  LinearLayout root = new LinearLayout(this);
+                  root.setOrientation(LinearLayout.VERTICAL);
+                  root.setGravity(Gravity.CENTER);
+                  root.setPadding(60, 60, 60, 60);
+                  
+                  // Background Gradasi Biar Modern
+                  GradientDrawable gd = new GradientDrawable(
+                      GradientDrawable.Orientation.TOP_BOTTOM,
+                      new int[] {0xFF1A237E, 0xFF000000});
+                  root.setBackground(gd);
+
+                  // Header Nama
+                  TextView name = new TextView(this);
+                  name.setText("RYCL JAM SIMPEL");
+                  name.setTextColor(Color.WHITE);
+                  name.setLetterSpacing(0.3f);
+                  name.setPadding(0, 0, 0, 100);
+                  root.addView(name);
+
+                  // Jam Utama (Besar)
+                  TextClock clock = new TextClock(this);
+                  clock.setTextSize(70);
+                  clock.setTextColor(Color.WHITE);
+                  clock.setFormat24Hour("HH:mm:ss");
+                  root.addView(clock);
+
+                  // Spasi
+                  View space = new View(this);
+                  space.setLayoutParams(new LinearLayout.LayoutParams(1, 150));
+                  root.addView(space);
+
+                  // Input Timer (Menit)
+                  EditText input = new EditText(this);
+                  input.setHint("Menit");
+                  input.setHintTextColor(Color.LTGRAY);
+                  input.setTextColor(Color.WHITE);
+                  input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+                  input.setGravity(Gravity.CENTER);
+                  root.addView(input);
+
+                  timerDisplay = new TextView(this);
+                  timerDisplay.setText("00:00");
+                  timerDisplay.setTextSize(40);
+                  timerDisplay.setTextColor(Color.YELLOW);
+                  root.addView(timerDisplay);
+
+                  Button startBtn = new Button(this);
+                  startBtn.setText("MULAI TIMER");
+                  startBtn.setBackgroundColor(Color.parseColor("#FFD700"));
+                  startBtn.setTextColor(Color.BLACK);
+                  root.addView(startBtn);
+
+                  startBtn.setOnClickListener(v -> {
+                      String val = input.getText().toString();
+                      if(!val.isEmpty()) {
+                          long millis = Long.parseLong(val) * 60000;
+                          if(timer != null) timer.cancel();
+                          
+                          timer = new CountDownTimer(millis, 1000) {
+                              public void onTick(long ms) {
+                                  long sec = ms / 1000;
+                                  timerDisplay.setText(String.format("%02d:%02d", sec/60, sec%60));
+                              }
+                              public void onFinish() {
+                                  timerDisplay.setText("WAKTU HABIS!");
+                                  // Bunyi Nada Dering
+                                  Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                                  Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+                                  r.play();
+                              }
+                          }.start();
+                      }
+                  });
+
+                  setContentView(root);
+              }
+          }
+          EOT
+
+      - name: Build APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jam_Simpel_V12_14
+          path: app/build/outputs/apk/debug/*.apk
+          
