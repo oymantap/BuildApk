@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Rycl_Ultra_Fix
+name: Build_Jam_Simpel_Rycl_Ultra_Fix_V2
 
 on: [push, workflow_dispatch]
 
@@ -43,8 +43,8 @@ jobs:
                   applicationId "com.rycl.jam.v3.final"
                   minSdkVersion 24
                   targetSdkVersion 34
-                  versionCode 1219
-                  versionName "12.19"
+                  versionCode 1211
+                  versionName "12.11"
               }
           }
           dependencies {}
@@ -70,16 +70,18 @@ jobs:
           </manifest>
           EOT
 
+          # FIX: TAMBAH IMPORT URI DI SINI
           cat <<EOT > app/src/main/java/com/rycl/jam/AlarmReceiver.java
           package com.rycl.jam;
           import android.content.*;
           import android.media.*;
+          import android.net.Uri;
           import android.widget.Toast;
 
           public class AlarmReceiver extends BroadcastReceiver {
               @Override
               public void onReceive(Context context, Intent intent) {
-                  Toast.makeText(context, "WAKTU HABIS! ALARM RYCL BUNYI!", Toast.LENGTH_LONG).show();
+                  Toast.makeText(context, "ALARM RYCL BUNYI!", Toast.LENGTH_LONG).show();
                   Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                   Ringtone r = RingtoneManager.getRingtone(context, notification);
                   if (r != null) {
@@ -108,32 +110,29 @@ jobs:
                   root.setOrientation(1); root.setGravity(Gravity.CENTER);
                   root.setBackgroundColor(Color.parseColor("#121212"));
 
-                  // --- FITUR 1: JAM ---
                   TextClock clock = new TextClock(this);
                   clock.setTextSize(50); clock.setTextColor(Color.WHITE);
                   root.addView(clock);
 
-                  // --- FITUR 2: TIMER (DURASI) ---
                   TextView t2 = new TextView(this);
                   t2.setText("\nTIMER (MENIT)"); t2.setTextColor(Color.CYAN);
                   root.addView(t2);
 
                   final EditText inTimer = new EditText(this);
-                  inTimer.setHint("Berapa Menit?"); inTimer.setTextColor(Color.WHITE); inTimer.setInputType(2);
+                  inTimer.setHint("Menit"); inTimer.setTextColor(Color.WHITE); inTimer.setInputType(2);
                   root.addView(inTimer);
 
                   Button btnTimer = new Button(this);
                   btnTimer.setText("START TIMER");
                   root.addView(btnTimer);
 
-                  // --- FITUR 3: ALARM (JAM TERTENTU) ---
                   TextView t3 = new TextView(this);
                   t3.setText("\nALARM (JAM & MENIT)"); t3.setTextColor(Color.YELLOW);
                   root.addView(t3);
 
                   LinearLayout row = new LinearLayout(this);
                   row.setGravity(Gravity.CENTER);
-                  final EditText inH = new EditText(this); inH.setHint("Jam (0-23)"); inH.setTextColor(Color.WHITE); inH.setInputType(2);
+                  final EditText inH = new EditText(this); inH.setHint("Jam"); inH.setTextColor(Color.WHITE); inH.setInputType(2);
                   final EditText inM = new EditText(this); inM.setHint("Menit"); inM.setTextColor(Color.WHITE); inM.setInputType(2);
                   row.addView(inH); row.addView(inM);
                   root.addView(row);
@@ -147,24 +146,24 @@ jobs:
                   wm.setTextColor(Color.DKGRAY); wm.setGravity(1);
                   root.addView(wm);
 
-                  // LOGIC TIMER
                   btnTimer.setOnClickListener(v -> {
-                      setAlarmSystem(Long.parseLong(inTimer.getText().toString()) * 60000);
-                      Toast.makeText(this, "Timer dipasang!", 0).show();
+                      if(!inTimer.getText().toString().isEmpty()) {
+                          setAlarmSystem(Long.parseLong(inTimer.getText().toString()) * 60000);
+                          Toast.makeText(this, "Timer dipasang!", 0).show();
+                      }
                   });
 
-                  // LOGIC ALARM
                   btnAlarm.setOnClickListener(v -> {
-                      Calendar cal = Calendar.getInstance();
-                      cal.set(Calendar.HOUR_OF_DAY, Integer.parseInt(inH.getText().toString()));
-                      cal.set(Calendar.MINUTE, Integer.parseInt(inM.getText().toString()));
-                      cal.set(Calendar.SECOND, 0);
-                      
-                      long diff = cal.getTimeInMillis() - System.currentTimeMillis();
-                      if(diff < 0) diff += 24 * 3600000; // Jika lewat, set buat besok
-                      
-                      setAlarmSystem(diff);
-                      Toast.makeText(this, "Alarm disetel!", 0).show();
+                      if(!inH.getText().toString().isEmpty() && !inM.getText().toString().isEmpty()) {
+                          Calendar cal = Calendar.getInstance();
+                          cal.set(Calendar.HOUR_OF_DAY, Integer.parseInt(inH.getText().toString()));
+                          cal.set(Calendar.MINUTE, Integer.parseInt(inM.getText().toString()));
+                          cal.set(Calendar.SECOND, 0);
+                          long diff = cal.getTimeInMillis() - System.currentTimeMillis();
+                          if(diff < 0) diff += 24 * 3600000;
+                          setAlarmSystem(diff);
+                          Toast.makeText(this, "Alarm disetel!", 0).show();
+                      }
                   });
 
                   setContentView(root);
@@ -175,7 +174,6 @@ jobs:
                   Intent i = new Intent(this, AlarmReceiver.class);
                   PendingIntent pi = PendingIntent.getBroadcast(this, 0, i, PendingIntent.FLAG_IMMUTABLE);
                   long trigger = System.currentTimeMillis() + delayMs;
-                  
                   if (Build.VERSION.SDK_INT >= 31) {
                       am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
                   } else {
@@ -191,6 +189,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Rycl_Lengkap
+          name: Jam_Simpel_Rycl_Lengkap_V2
           path: app/build/outputs/apk/debug/*.apk
           
