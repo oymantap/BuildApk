@@ -1,4 +1,4 @@
-name: Build_Jam_Rycl_Pro_Fix
+name: Build_Jam_Rycl_Pro_Final
 
 on: [push, workflow_dispatch]
 
@@ -19,34 +19,20 @@ jobs:
           rm -rf app/src
           mkdir -p app/src/main/java/com/rycl/jam
           
-          # 1. SETTINGS DENGAN PAKSA GUDANG GOOGLE
           cat <<EOT > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
+              repositories { google(); mavenCentral() }
           }
-          rootProject.name = "JamSimpel"
+          rootProject.name = "JamRycl"
           include ':app'
           EOT
 
-          # 2. BUILD FILE (KOSONGKAN UTAMA)
           echo "" > build.gradle
 
-          # 3. BUILD FILE APP (PAKAI VERSI STABIL)
           cat <<EOT > app/build.gradle
-          plugins {
-              id 'com.android.application' version '8.2.2'
-          }
+          plugins { id 'com.android.application' version '8.2.2' }
           android {
               namespace 'com.rycl.jam'
               compileSdk 34
@@ -60,10 +46,12 @@ jobs:
           }
           EOT
 
-          # 4. MANIFEST (JAM RYCL PRO)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:label="Jam Rycl Pro" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+              <application 
+                  android:label="Jam Rycl Pro" 
+                  android:icon="@android:drawable/ic_lock_idle_alarm"
+                  android:allowBackup="true">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -74,7 +62,6 @@ jobs:
           </manifest>
           EOT
 
-          # 5. KODE JAVA MODERN (JAM + TIMER + NAMA RYCL)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -88,6 +75,7 @@ jobs:
 
           public class MainActivity extends Activity {
               private boolean isRunning = false;
+              private long pauseOffset = 0;
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
@@ -98,29 +86,28 @@ jobs:
                   root.setPadding(50, 50, 50, 50);
 
                   TextView brand = new TextView(this);
-                  brand.setText("RYCL EXCLUSIVE EDITION");
+                  brand.setText("RYCL EXCLUSIVE");
                   brand.setTextColor(Color.GRAY);
                   brand.setTextSize(14);
-                  brand.setLetterSpacing(0.2f);
                   root.addView(brand);
 
                   TextClock clock = new TextClock(this);
-                  clock.setFormat24Hour("HH:mm");
-                  clock.setTextSize(80);
+                  clock.setFormat24Hour("HH:mm:ss");
+                  clock.setTextSize(65);
                   clock.setTextColor(Color.WHITE);
                   clock.setTypeface(null, Typeface.BOLD);
                   root.addView(clock);
 
                   TextView owner = new TextView(this);
-                  owner.setText("Created by Rycl");
+                  owner.setText("By Rycl");
                   owner.setTextColor(Color.parseColor("#00FFAB"));
                   owner.setPadding(0, 0, 0, 80);
                   root.addView(owner);
 
                   final Chronometer timer = new Chronometer(this);
-                  timer.setTextSize(40);
-                  timer.setTextColor(Color.WHITE);
-                  timer.setPadding(0, 50, 0, 30);
+                  timer.setTextSize(45);
+                  timer.setTextColor(Color.YELLOW);
+                  timer.setPadding(0, 40, 0, 40);
                   root.addView(timer);
 
                   Button btn = new Button(this);
@@ -131,11 +118,12 @@ jobs:
                       @Override
                       public void onClick(View v) {
                           if (!isRunning) {
-                              timer.setBase(SystemClock.elapsedRealtime());
+                              timer.setBase(SystemClock.elapsedRealtime() - pauseOffset);
                               timer.start();
                               isRunning = true;
                           } else {
                               timer.stop();
+                              pauseOffset = SystemClock.elapsedRealtime() - timer.getBase();
                               isRunning = false;
                           }
                       }
@@ -152,6 +140,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Rycl_Pro_V12_13_FIX
+          name: Jam_Rycl_Pro_Final
           path: app/build/outputs/apk/debug/*.apk
           
