@@ -1,4 +1,4 @@
-name: Build_Jam_Modern_Rycl
+name: Build_Jam_Rycl_Pro_Fix
 
 on: [push, workflow_dispatch]
 
@@ -14,15 +14,39 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Modern App
+      - name: Create Structure
         run: |
           rm -rf app/src
           mkdir -p app/src/main/java/com/rycl/jam
           
-          # 1. Settings & Build Files (Versi 12.13 sebagai update)
-          echo "include ':app'" > settings.gradle
-          echo "plugins { id 'com.android.application' version '8.2.2' }" > app/build.gradle
-          cat <<EOT >> app/build.gradle
+          # 1. SETTINGS DENGAN PAKSA GUDANG GOOGLE
+          cat <<EOT > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "JamSimpel"
+          include ':app'
+          EOT
+
+          # 2. BUILD FILE (KOSONGKAN UTAMA)
+          echo "" > build.gradle
+
+          # 3. BUILD FILE APP (PAKAI VERSI STABIL)
+          cat <<EOT > app/build.gradle
+          plugins {
+              id 'com.android.application' version '8.2.2'
+          }
           android {
               namespace 'com.rycl.jam'
               compileSdk 34
@@ -36,7 +60,7 @@ jobs:
           }
           EOT
 
-          # 2. Manifest
+          # 4. MANIFEST (JAM RYCL PRO)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application android:label="Jam Rycl Pro" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
@@ -50,7 +74,7 @@ jobs:
           </manifest>
           EOT
 
-          # 3. Kode Java Modern (Jam + Timer + Nama)
+          # 5. KODE JAVA MODERN (JAM + TIMER + NAMA RYCL)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -67,14 +91,12 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
                   root.setGravity(Gravity.CENTER);
                   root.setBackgroundColor(Color.parseColor("#121212"));
                   root.setPadding(50, 50, 50, 50);
 
-                  // Nama Kamu (Header)
                   TextView brand = new TextView(this);
                   brand.setText("RYCL EXCLUSIVE EDITION");
                   brand.setTextColor(Color.GRAY);
@@ -82,7 +104,6 @@ jobs:
                   brand.setLetterSpacing(0.2f);
                   root.addView(brand);
 
-                  // Jam Digital Besar
                   TextClock clock = new TextClock(this);
                   clock.setFormat24Hour("HH:mm");
                   clock.setTextSize(80);
@@ -90,14 +111,12 @@ jobs:
                   clock.setTypeface(null, Typeface.BOLD);
                   root.addView(clock);
 
-                  // Nama Pembuat
                   TextView owner = new TextView(this);
                   owner.setText("Created by Rycl");
                   owner.setTextColor(Color.parseColor("#00FFAB"));
                   owner.setPadding(0, 0, 0, 80);
                   root.addView(owner);
 
-                  // Fitur Timer/Stopwatch
                   final Chronometer timer = new Chronometer(this);
                   timer.setTextSize(40);
                   timer.setTextColor(Color.WHITE);
@@ -108,7 +127,6 @@ jobs:
                   btn.setText("START / STOP");
                   btn.setBackgroundColor(Color.parseColor("#00FFAB"));
                   btn.setTextColor(Color.BLACK);
-                  
                   btn.setOnClickListener(new View.OnClickListener() {
                       @Override
                       public void onClick(View v) {
@@ -122,7 +140,6 @@ jobs:
                           }
                       }
                   });
-                  
                   root.addView(btn);
                   setContentView(root);
               }
@@ -135,6 +152,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Rycl_Pro_V12_13
+          name: Jam_Rycl_Pro_V12_13_FIX
           path: app/build/outputs/apk/debug/*.apk
           
