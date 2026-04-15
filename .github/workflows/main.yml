@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Rycl_Ultra_Fix_V2
+name: Build_Jam_Rycl_With_Stop_Button
 
 on: [push, workflow_dispatch]
 
@@ -19,75 +19,80 @@ jobs:
           rm -rf app settings.gradle build.gradle
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
-
-          if [ -f "icon_app.png" ]; then
-            cp icon_app.png app/src/main/res/drawable/icon_app.png
-          fi
-
+          [ -f "icon_app.png" ] && cp icon_app.png app/src/main/res/drawable/icon_app.png
           echo "include ':app'" > settings.gradle
-
-          cat <<EOT > build.gradle
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
-          }
-          allprojects { repositories { google(); mavenCentral() } }
-          EOT
+          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.2.2' } }" > build.gradle
+          echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
 
           cat <<EOT > app/build.gradle
           apply plugin: 'com.android.application'
           android {
               namespace 'com.rycl.jam'
               compileSdkVersion 34
-              defaultConfig {
-                  applicationId "com.rycl.jam.v3.final"
-                  minSdkVersion 24
-                  targetSdkVersion 34
-                  versionCode 1211
-                  versionName "12.11"
-              }
+              defaultConfig { applicationId "com.rycl.jam.v3.final"; minSdk 24; targetSdk 34; versionCode 1211; versionName "12.11" }
           }
-          dependencies {}
+          dependencies {
+              implementation 'androidx.core:core:1.12.0'
+          }
           EOT
 
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
               <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
-              <uses-permission android:name="android.permission.WAKE_LOCK" />
-              <application 
-                  android:label="Jam Simpel" 
-                  android:icon="@drawable/icon_app" 
-                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <application android:label="Jam Simpel" android:icon="@drawable/icon_app" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
+                      <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
                   </activity>
                   <receiver android:name="com.rycl.jam.AlarmReceiver" android:exported="false" />
               </application>
           </manifest>
           EOT
 
-          # FIX: TAMBAH IMPORT URI DI SINI
           cat <<EOT > app/src/main/java/com/rycl/jam/AlarmReceiver.java
           package com.rycl.jam;
           import android.content.*;
           import android.media.*;
           import android.net.Uri;
-          import android.widget.Toast;
+          import android.app.*;
+          import androidx.core.app.NotificationCompat;
 
           public class AlarmReceiver extends BroadcastReceiver {
+              private static Ringtone ringtone;
               @Override
               public void onReceive(Context context, Intent intent) {
-                  Toast.makeText(context, "ALARM RYCL BUNYI!", Toast.LENGTH_LONG).show();
-                  Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-                  Ringtone r = RingtoneManager.getRingtone(context, notification);
-                  if (r != null) {
-                      r.setStreamType(AudioManager.STREAM_ALARM);
-                      r.play();
+                  String action = intent.getAction();
+                  if ("STOP_ALARM".equals(action)) {
+                      if (ringtone != null) ringtone.stop();
+                      NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                      nm.cancel(101);
+                      return;
                   }
+
+                  Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                  if (ringtone == null) ringtone = RingtoneManager.getRingtone(context, uri);
+                  ringtone.play();
+
+                  NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+                  if (android.os.Build.VERSION.SDK_INT >= 26) {
+                      nm.createNotificationChannel(new NotificationChannel("RYCL", "Alarm", NotificationManager.IMPORTANCE_HIGH));
+                  }
+
+                  Intent stopIntent = new Intent(context, AlarmReceiver.class);
+                  stopIntent.setAction("STOP_ALARM");
+                  PendingIntent stopPI = PendingIntent.getBroadcast(context, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+
+                  Notification notif = new NotificationCompat.Builder(context, "RYCL")
+                      .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                      .setContentTitle("ALARM RYCL")
+                      .setContentText("Waktu Habis! Klik stop untuk mematikan.")
+                      .setPriority(NotificationCompat.PRIORITY_MAX)
+                      .setCategory(NotificationCompat.CATEGORY_ALARM)
+                      .addAction(android.R.drawable.ic_menu_close_clear_cancel, "MATIKAN ALARM", stopPI)
+                      .setOngoing(true)
+                      .build();
+                  nm.notify(101, notif);
               }
           }
           EOT
@@ -114,71 +119,42 @@ jobs:
                   clock.setTextSize(50); clock.setTextColor(Color.WHITE);
                   root.addView(clock);
 
-                  TextView t2 = new TextView(this);
-                  t2.setText("\nTIMER (MENIT)"); t2.setTextColor(Color.CYAN);
-                  root.addView(t2);
+                  final EditText inT = new EditText(this); inT.setHint("Timer (Menit)"); inT.setTextColor(Color.WHITE); inT.setInputType(2);
+                  root.addView(inT);
+                  Button bT = new Button(this); bT.setText("START TIMER"); root.addView(bT);
 
-                  final EditText inTimer = new EditText(this);
-                  inTimer.setHint("Menit"); inTimer.setTextColor(Color.WHITE); inTimer.setInputType(2);
-                  root.addView(inTimer);
-
-                  Button btnTimer = new Button(this);
-                  btnTimer.setText("START TIMER");
-                  root.addView(btnTimer);
-
-                  TextView t3 = new TextView(this);
-                  t3.setText("\nALARM (JAM & MENIT)"); t3.setTextColor(Color.YELLOW);
-                  root.addView(t3);
-
-                  LinearLayout row = new LinearLayout(this);
-                  row.setGravity(Gravity.CENTER);
-                  final EditText inH = new EditText(this); inH.setHint("Jam"); inH.setTextColor(Color.WHITE); inH.setInputType(2);
+                  final EditText inH = new EditText(this); inH.setHint("Jam (0-23)"); inH.setTextColor(Color.WHITE); inH.setInputType(2);
                   final EditText inM = new EditText(this); inM.setHint("Menit"); inM.setTextColor(Color.WHITE); inM.setInputType(2);
-                  row.addView(inH); row.addView(inM);
-                  root.addView(row);
+                  root.addView(inH); root.addView(inM);
+                  Button bA = new Button(this); bA.setText("SET ALARM"); root.addView(bA);
 
-                  Button btnAlarm = new Button(this);
-                  btnAlarm.setText("SET ALARM");
-                  root.addView(btnAlarm);
+                  TextView wm = new TextView(this); wm.setText("\nPowered by Rycl"); wm.setTextColor(Color.DKGRAY); wm.setGravity(1); root.addView(wm);
 
-                  TextView wm = new TextView(this);
-                  wm.setText("\n\nPowered by Rycl"); wm.setTextSize(10);
-                  wm.setTextColor(Color.DKGRAY); wm.setGravity(1);
-                  root.addView(wm);
-
-                  btnTimer.setOnClickListener(v -> {
-                      if(!inTimer.getText().toString().isEmpty()) {
-                          setAlarmSystem(Long.parseLong(inTimer.getText().toString()) * 60000);
-                          Toast.makeText(this, "Timer dipasang!", 0).show();
-                      }
+                  bT.setOnClickListener(v -> {
+                      if(!inT.getText().toString().isEmpty()) setA(Long.parseLong(inT.getText().toString()) * 60000);
                   });
 
-                  btnAlarm.setOnClickListener(v -> {
-                      if(!inH.getText().toString().isEmpty() && !inM.getText().toString().isEmpty()) {
-                          Calendar cal = Calendar.getInstance();
-                          cal.set(Calendar.HOUR_OF_DAY, Integer.parseInt(inH.getText().toString()));
-                          cal.set(Calendar.MINUTE, Integer.parseInt(inM.getText().toString()));
-                          cal.set(Calendar.SECOND, 0);
-                          long diff = cal.getTimeInMillis() - System.currentTimeMillis();
-                          if(diff < 0) diff += 24 * 3600000;
-                          setAlarmSystem(diff);
-                          Toast.makeText(this, "Alarm disetel!", 0).show();
+                  bA.setOnClickListener(v -> {
+                      if(!inH.getText().toString().isEmpty() && !inM.getText().toString().isEmpty()){
+                          Calendar c = Calendar.getInstance();
+                          c.set(Calendar.HOUR_OF_DAY, Integer.parseInt(inH.getText().toString()));
+                          c.set(Calendar.MINUTE, Integer.parseInt(inM.getText().toString()));
+                          c.set(Calendar.SECOND, 0);
+                          long d = c.getTimeInMillis() - System.currentTimeMillis();
+                          if(d < 0) d += 24 * 3600000;
+                          setA(d);
                       }
                   });
-
                   setContentView(root);
               }
 
-              private void setAlarmSystem(long delayMs) {
+              private void setA(long ms) {
                   AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
                   Intent i = new Intent(this, AlarmReceiver.class);
-                  PendingIntent pi = PendingIntent.getBroadcast(this, 0, i, PendingIntent.FLAG_IMMUTABLE);
-                  long trigger = System.currentTimeMillis() + delayMs;
-                  if (Build.VERSION.SDK_INT >= 31) {
-                      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
-                  } else {
-                      am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi);
-                  }
+                  PendingIntent pi = PendingIntent.getBroadcast(this, 1, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+                  if (Build.VERSION.SDK_INT >= 31) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + ms, pi);
+                  else am.setExact(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + ms, pi);
+                  Toast.makeText(this, "Alarm Disetel!", 0).show();
               }
           }
           EOT
@@ -189,6 +165,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Rycl_Lengkap_V2
+          name: Jam_Simpel_Final_With_Stop
           path: app/build/outputs/apk/debug/*.apk
           
