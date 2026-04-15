@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Final_Fix
+name: Build_Jam_Simpel_Final_Beton
 
 on: [push, workflow_dispatch]
 
@@ -16,17 +16,12 @@ jobs:
 
       - name: Create Structure
         run: |
-          # 1. Bersihkan folder lama
-          rm -rf app/src
+          # 1. Bersihkan semua tanpa ampun
+          rm -rf app settings.gradle build.gradle
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
           
-          # 2. Pindahkan Ikon (Jika kamu upload di luar folder)
-          if [ -f "icon_app.png" ]; then
-            cp icon_app.png app/src/main/res/drawable/icon_app.png
-          fi
-
-          # 3. Settings (Identitas Tetap)
+          # 2. Settings
           cat <<EOT > settings.gradle
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement {
@@ -37,9 +32,10 @@ jobs:
           include ':app'
           EOT
 
-          # 4. Build File (SUDAH DIPERBAIKI - TANPA PAGAR)
+          # 3. Build File (Kunci ID)
+          echo "plugins { id 'com.android.application' version '8.2.2' }" > build.gradle
           cat <<EOT > app/build.gradle
-          plugins { id 'com.android.application' version '8.2.2' }
+          plugins { id 'com.android.application' }
           android {
               namespace 'com.rycl.jam'
               compileSdk 34
@@ -53,12 +49,13 @@ jobs:
           }
           EOT
 
-          # 5. Manifest
+          # 4. Manifest (PAKE IKON SISTEM DULU BIAR GAK ERROR LINKING)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application 
                   android:label="Jam Simpel" 
-                  android:icon="@drawable/icon_app"
+                  android:icon="@android:drawable/ic_lock_idle_alarm"
+                  android:allowBackup="true"
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
                       <intent-filter>
@@ -70,7 +67,7 @@ jobs:
           </manifest>
           EOT
 
-          # 6. Kode Java (Modern UI + Timer + Sound)
+          # 5. Kode Java (UI Modern & Timer)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -86,25 +83,19 @@ jobs:
           public class MainActivity extends Activity {
               private CountDownTimer timer;
               private TextView timerDisplay;
-              
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
                   root.setGravity(Gravity.CENTER);
                   root.setPadding(60, 60, 60, 60);
-                  
-                  GradientDrawable gd = new GradientDrawable(
-                      GradientDrawable.Orientation.TOP_BOTTOM,
-                      new int[] {0xFF1A237E, 0xFF000000});
+                  GradientDrawable gd = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[] {0xFF1A237E, 0xFF000000});
                   root.setBackground(gd);
 
                   TextView name = new TextView(this);
                   name.setText("RYCL JAM SIMPEL");
                   name.setTextColor(Color.WHITE);
-                  name.setLetterSpacing(0.3f);
                   name.setPadding(0, 0, 0, 100);
                   root.addView(name);
 
@@ -113,10 +104,6 @@ jobs:
                   clock.setTextColor(Color.WHITE);
                   clock.setFormat24Hour("HH:mm:ss");
                   root.addView(clock);
-
-                  View space = new View(this);
-                  space.setLayoutParams(new LinearLayout.LayoutParams(1, 100));
-                  root.addView(space);
 
                   EditText input = new EditText(this);
                   input.setHint("Menit");
@@ -130,36 +117,33 @@ jobs:
                   timerDisplay.setText("00:00");
                   timerDisplay.setTextSize(40);
                   timerDisplay.setTextColor(Color.YELLOW);
-                  timerDisplay.setPadding(0, 20, 0, 20);
                   root.addView(timerDisplay);
 
                   Button startBtn = new Button(this);
                   startBtn.setText("MULAI TIMER");
                   startBtn.setBackgroundColor(Color.parseColor("#FFD700"));
-                  startBtn.setTextColor(Color.BLACK);
                   root.addView(startBtn);
 
                   startBtn.setOnClickListener(v -> {
                       String val = input.getText().toString();
                       if(!val.isEmpty()) {
-                          long millis = Long.parseLong(val) * 60000;
                           if(timer != null) timer.cancel();
-                          
-                          timer = new CountDownTimer(millis, 1000) {
+                          timer = new CountDownTimer(Long.parseLong(val) * 60000, 1000) {
                               public void onTick(long ms) {
                                   long sec = ms / 1000;
                                   timerDisplay.setText(String.format("%02d:%02d", sec/60, sec%60));
                               }
                               public void onFinish() {
-                                  timerDisplay.setText("WAKTU HABIS!");
-                                  Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-                                  Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
-                                  r.play();
+                                  timerDisplay.setText("HABIS!");
+                                  try {
+                                      Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                                      Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+                                      r.play();
+                                  } catch (Exception e) {}
                               }
                           }.start();
                       }
                   });
-
                   setContentView(root);
               }
           }
@@ -171,6 +155,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_V12_14_NoPagar
+          name: Jam_Simpel_V12_14_Beton
           path: app/build/outputs/apk/debug/*.apk
           
