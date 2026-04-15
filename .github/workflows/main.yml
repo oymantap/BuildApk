@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Rycl_PANTANG_MENYERAH
+name: Build_FINAL_TOTAL_RYCL_NO_ERROR
 
 on: [push, workflow_dispatch]
 
@@ -14,63 +14,50 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Structure
+      - name: Create Project
         run: |
           rm -rf app settings.gradle build.gradle gradle.properties
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
-          mkdir -p app/src/main/res/values
 
-          # 1. Bensin AndroidX
-          echo "android.useAndroidX=true" > gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
-
-          # 2. Ambil Ikon Buatan Rycl
           if [ -f "icon_app.png" ]; then
             cp icon_app.png app/src/main/res/drawable/icon_app.png
           fi
 
-          # 3. Settings Paling Simpel
           echo "include ':app'" > settings.gradle
 
-          # 4. SATU FILE UNTUK SEMUA (Mencegah Mutation Error)
           cat <<EOT > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
               dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
           }
-          allprojects {
-              repositories { google(); mavenCentral() }
-          }
+          allprojects { repositories { google(); mavenCentral() } }
           EOT
 
-          # 5. Build App Tanpa Blok Plugins (Gaya Klasik yang Paling Stabil)
           cat <<EOT > app/build.gradle
           apply plugin: 'com.android.application'
           android {
               namespace 'com.rycl.jam'
               compileSdkVersion 34
               defaultConfig {
-                  applicationId "com.rycl.jam.fix.final.sekali"
+                  applicationId "com.rycl.jam.fix.final.berhasil"
                   minSdkVersion 24
                   targetSdkVersion 34
                   versionCode 1
                   versionName "1.0"
               }
           }
-          // Kosongkan dependencies di sini, kita pakai library standar saja
           dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.11.0'
+              // KOSONG TOTAL - ANTI MUTATION ERROR
           }
           EOT
 
-          # 6. Manifest & Theme
-          echo "<resources><style name='AppTheme' parent='Theme.Material3.DayNight.NoActionBar'/></resources>" > app/src/main/res/values/themes.xml
-          
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:label="Jam Simpel" android:icon="@drawable/icon_app" android:theme="@style/AppTheme">
+              <application 
+                  android:label="Jam Simpel" 
+                  android:icon="@drawable/icon_app" 
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
@@ -81,7 +68,6 @@ jobs:
           </manifest>
           EOT
 
-          # 7. Kode Java (Fitur Lengkap + Powered by Rycl)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -89,8 +75,6 @@ jobs:
           import android.view.*;
           import android.widget.*;
           import android.graphics.Color;
-          import com.google.android.material.button.MaterialButton;
-          import com.google.android.material.tabs.TabLayout;
           import android.media.Ringtone;
           import android.media.RingtoneManager;
 
@@ -103,64 +87,49 @@ jobs:
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(1);
                   root.setGravity(Gravity.CENTER);
-                  root.setBackgroundColor(Color.parseColor("#F5F5F5"));
+                  root.setBackgroundColor(Color.parseColor("#121212"));
 
-                  TabLayout tabs = new TabLayout(this);
-                  tabs.addTab(tabs.newTab().setText("JAM"));
-                  tabs.addTab(tabs.newTab().setText("TIMER"));
-                  root.addView(tabs);
+                  TextView head = new TextView(this);
+                  head.setText("JAM SIMPEL"); head.setTextColor(Color.WHITE);
+                  head.setTextSize(24); head.setPadding(0, 40, 0, 40);
+                  root.addView(head);
 
-                  final FrameLayout container = new FrameLayout(this);
-                  root.addView(container, new LinearLayout.LayoutParams(-1, 0, 1f));
-
-                  // UI JAM
                   final TextClock clock = new TextClock(this);
-                  clock.setTextSize(60);
-                  clock.setGravity(Gravity.CENTER);
-                  container.addView(clock);
+                  clock.setTextSize(60); clock.setTextColor(Color.CYAN);
+                  root.addView(clock);
 
-                  // UI TIMER
                   final LinearLayout tL = new LinearLayout(this);
                   tL.setOrientation(1); tL.setGravity(Gravity.CENTER);
-                  tL.setVisibility(View.GONE);
-                  
+                  tL.setPadding(0, 50, 0, 50);
+
                   final TextView tvDisp = new TextView(this);
-                  tvDisp.setText("00:00:00"); tvDisp.setTextSize(50);
+                  tvDisp.setText("00:00:00"); tvDisp.setTextSize(50); tvDisp.setTextColor(Color.YELLOW);
                   tL.addView(tvDisp);
 
                   LinearLayout ins = new LinearLayout(this);
                   ins.setGravity(Gravity.CENTER);
-                  final EditText eH = new EditText(this); eH.setHint("H");
-                  final EditText eM = new EditText(this); eM.setHint("M");
-                  final EditText eS = new EditText(this); eS.setHint("S");
+                  final EditText eH = new EditText(this); eH.setHint("H"); eH.setTextColor(Color.WHITE);
+                  final EditText eM = new EditText(this); eM.setHint("M"); eM.setTextColor(Color.WHITE);
+                  final EditText eS = new EditText(this); eS.setHint("S"); eS.setTextColor(Color.WHITE);
                   eH.setInputType(2); eM.setInputType(2); eS.setInputType(2);
                   ins.addView(eH); ins.addView(eM); ins.addView(eS);
                   tL.addView(ins);
 
-                  final MaterialButton btn = new MaterialButton(this);
-                  btn.setText("START");
+                  final Button btn = new Button(this);
+                  btn.setText("START TIMER");
                   tL.addView(btn);
 
-                  final MaterialButton stopBtn = new MaterialButton(this);
-                  stopBtn.setText("MATIKAN ALARM"); stopBtn.setVisibility(View.GONE);
+                  final Button stopBtn = new Button(this);
+                  stopBtn.setText("MATIKAN ALARM"); stopBtn.setVisibility(8);
                   stopBtn.setBackgroundColor(Color.RED);
                   tL.addView(stopBtn);
-                  container.addView(tL);
+                  root.addView(tL);
 
-                  // Watermark
                   TextView wm = new TextView(this);
                   wm.setText("Powered by Rycl"); wm.setTextSize(10);
-                  wm.setTextColor(Color.LTGRAY); wm.setGravity(1);
+                  wm.setTextColor(Color.DKGRAY); wm.setGravity(1);
+                  wm.setPadding(0, 50, 0, 20);
                   root.addView(wm);
-
-                  tabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-                      public void onTabSelected(TabLayout.Tab t) {
-                          clock.setVisibility(t.getPosition()==0 ? 0 : 8);
-                          tL.setVisibility(t.getPosition()==1 ? 0 : 8);
-                      }
-                      public void onTabUnselected(TabLayout.Tab t) {}
-                      public void onTabReselected(TabLayout.Tab t) {}
-                  });
 
                   btn.setOnClickListener(v -> {
                       long time = (gv(eH)*3600 + gv(eM)*60 + gv(eS)) * 1000;
@@ -172,7 +141,7 @@ jobs:
                                   tvDisp.setText(String.format("%02d:%02d:%02d", h, m, s));
                               }
                               public void onFinish() {
-                                  tvDisp.setText("HABIS!");
+                                  tvDisp.setText("TIME UP!");
                                   ring = RingtoneManager.getRingtone(getApplicationContext(), RingtoneManager.getDefaultUri(4));
                                   if(ring != null) { ring.setLooping(true); ring.play(); }
                                   btn.setVisibility(8); stopBtn.setVisibility(0);
@@ -202,6 +171,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Rycl_FINAL_JUARA
+          name: Jam_Simpel_Rycl_Berhasil
           path: app/build/outputs/apk/debug/*.apk
           
