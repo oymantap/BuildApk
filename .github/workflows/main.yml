@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Final_Beton
+name: Build_Jam_Simpel_Rycl_Final_V4
 
 on: [push, workflow_dispatch]
 
@@ -14,48 +14,62 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Structure
+      - name: Create Project
         run: |
-          # 1. Bersihkan semua tanpa ampun
+          # 1. Bersihkan folder
           rm -rf app settings.gradle build.gradle
           mkdir -p app/src/main/java/com/rycl/jam
-          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/layout
           
           # 2. Settings
           cat <<EOT > settings.gradle
-          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
               repositories { google(); mavenCentral() }
           }
-          rootProject.name = "JamSimpel"
           include ':app'
           EOT
 
-          # 3. Build File (Kunci ID)
-          echo "plugins { id 'com.android.application' version '8.2.2' }" > build.gradle
+          # 3. Build File Utama (Wajib ada plugin management)
+          cat <<EOT > build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.2.2'
+              }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          EOT
+
+          # 4. Build File App (Pakai cara lama yang lebih stabil buat Gradle 9)
           cat <<EOT > app/build.gradle
-          plugins { id 'com.android.application' }
+          apply plugin: 'com.android.application'
+
           android {
+              compileSdkVersion 34
               namespace 'com.rycl.jam'
-              compileSdk 34
+              
               defaultConfig {
                   applicationId "com.rycl.jam"
-                  minSdk 24
-                  targetSdk 34
+                  minSdkVersion 24
+                  targetSdkVersion 34
                   versionCode 1214
                   versionName "12.14"
               }
           }
           EOT
 
-          # 4. Manifest (PAKE IKON SISTEM DULU BIAR GAK ERROR LINKING)
+          # 5. Manifest (Ikon sistem dulu biar gak error resource)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application 
                   android:label="Jam Simpel" 
                   android:icon="@android:drawable/ic_lock_idle_alarm"
-                  android:allowBackup="true"
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
                       <intent-filter>
@@ -67,7 +81,7 @@ jobs:
           </manifest>
           EOT
 
-          # 5. Kode Java (UI Modern & Timer)
+          # 6. Kode Java (UI Modern + Timer)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -155,6 +169,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_V12_14_Beton
+          name: Jam_Simpel_Fixed_Build
           path: app/build/outputs/apk/debug/*.apk
           
