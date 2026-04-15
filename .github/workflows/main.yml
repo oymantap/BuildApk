@@ -1,4 +1,4 @@
-name: Build_APK_Rycl_Fix
+name: Build_APK_Rycl_Final_Boss
 
 on: [push, workflow_dispatch]
 
@@ -14,16 +14,39 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Structure and Build
+      - name: Create Project structure
         run: |
-          # 1. Buat folder dulu
           mkdir -p app/src/main/java/com/rycl/app
           
-          # 2. File Settings yang simpel
-          echo "rootProject.name = 'RyclApp'" > settings.gradle
-          echo "include ':app'" >> settings.gradle
-          
-          # 3. Build file versi modern (Tanpa buildscript ribet)
+          # 1. Settings file (Paling penting buat kasih tahu lokasi plugin)
+          cat <<EOT > settings.gradle
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "RyclApp"
+          include ':app'
+          EOT
+
+          # 2. Build file Utama (Cuma buat deklarasi versi plugin)
+          cat <<EOT > build.gradle
+          plugins {
+              id 'com.android.application' version '8.2.2' apply false
+              id 'com.android.library' version '8.2.2' apply false
+          }
+          EOT
+
+          # 3. Build file App (Baru panggil pluginnya tanpa versi)
           cat <<EOT > app/build.gradle
           plugins {
               id 'com.android.application'
@@ -41,15 +64,15 @@ jobs:
           }
           EOT
 
-          # 4. Manifest minimalis
+          # 4. Manifest
           echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rycl.app"><application/></manifest>' > app/src/main/AndroidManifest.xml
 
-          # 5. Eksekusi build (Langsung pakai perintah gradle bawaan runner)
-          gradle assembleDebug --no-daemon
+      - name: Build with Gradle
+        run: gradle :app:assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APK_RYCL_JADI
+          name: APK_RYCL_BERHASIL
           path: app/build/outputs/apk/debug/*.apk
           
