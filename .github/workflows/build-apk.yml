@@ -1,9 +1,9 @@
-name: Build Android APK Otomatis
+name: Build Android APK Final
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # Supaya bisa klik tombol "Run" manual
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,21 +19,32 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Buat Proyek Android Dummy
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v2
+
+      - name: Buat Struktur Proyek
         run: |
-          # Perintah ini akan membuat struktur folder Android otomatis di server
-          mkdir -p app/src/main/res/values
+          # Buat folder-folder yang dibutuhkan
           mkdir -p app/src/main/java/com/rycl/app
-          
-          # Buat file settings
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+
+          # Buat settings.gradle
           echo "rootProject.name = 'AppRycl'" > settings.gradle
           echo "include ':app'" >> settings.gradle
-          
-          # Buat file build.gradle utama
-          echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.0.2' } }" > build.gradle
-          echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
-          
-          # Buat file build.gradle khusus app
+
+          # Buat build.gradle Utama
+          cat <<EOT > build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:7.4.2' }
+          }
+          allprojects {
+              repositories { google(); mavenCentral() }
+          }
+          EOT
+
+          # Buat build.gradle App
           cat <<EOT > app/build.gradle
           plugins { id 'com.android.application' }
           android {
@@ -49,19 +60,16 @@ jobs:
           }
           EOT
 
-          # Buat Manifest biar gak error
-          cat <<EOT > app/src/main/AndroidManifest.xml
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:label="App Rycl"></application>
-          </manifest>
-          EOT
+          # Buat Android Manifest (Sangat Minimalis)
+          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rycl.app"><application/></manifest>' > app/src/main/AndroidManifest.xml
 
-      - name: Build APK
-        run: gradle assembleDebug
+      - name: Build dengan Gradle
+        run: gradle assembleDebug --stacktrace
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v3
         with:
-          name: APK-Jadi-Rycl
+          name: Hasil-APK-Rycl
           path: app/build/outputs/apk/debug/*.apk
           
