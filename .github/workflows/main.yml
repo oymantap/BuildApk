@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Final_Pasti_Muncul
+name: Build_Jam_Simpel_Final_RYCL_FIX
 
 on: [push, workflow_dispatch]
 
@@ -16,25 +16,20 @@ jobs:
 
       - name: Create Structure
         run: |
-          # Bersihkan semua sampah lama
           rm -rf app settings.gradle build.gradle
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/values
 
-          # 1. Pindahkan Ikon Kamu (Jika ada di root)
           if [ -f "icon_app.png" ]; then
             cp icon_app.png app/src/main/res/drawable/icon_app.png
             ICON_VAL="@drawable/icon_app"
           else
-            # Fail-safe: Pakai ikon sistem biar gak error build
             ICON_VAL="@android:drawable/ic_lock_idle_alarm"
           fi
 
-          # 2. Settings (PENTING: Tanpa gudang biar gak bentrok)
           echo "include ':app'" > settings.gradle
 
-          # 3. Build File Utama (Gudang Google Cuma di Sini)
           cat <<EOT > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -43,14 +38,13 @@ jobs:
           allprojects { repositories { google(); mavenCentral() } }
           EOT
 
-          # 4. Build File App (Pakai Material Design & Kunci Identitas)
           cat <<EOT > app/build.gradle
           apply plugin: 'com.android.application'
           android {
               compileSdkVersion 34
               namespace 'com.rycl.jam'
               defaultConfig {
-                  applicationId "com.rycl.jam.FINAL" # KUNCI IDENTITAS BARU
+                  applicationId "com.rycl.jam.FINAL"
                   minSdkVersion 24
                   targetSdkVersion 34
                   versionCode 1
@@ -62,7 +56,6 @@ jobs:
           }
           EOT
 
-          # 5. Manifest (Theme Modern & Ikon Pasti Muncul)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application 
@@ -80,7 +73,6 @@ jobs:
           </manifest>
           EOT
 
-          # 6. Kode Java (UI Modern + Timer + Nada Dering)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -104,46 +96,38 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
                   root.setGravity(Gravity.CENTER);
                   root.setPadding(60, 100, 60, 60);
-                  root.setBackgroundColor(Color.parseColor("#F5F5F5")); // Light Modern
+                  root.setBackgroundColor(Color.parseColor("#F5F5F5"));
 
-                  // Header Nama
                   TextView name = new TextView(this);
                   name.setText("RYCL JAM");
-                  name.setTextColor(Color.parseColor("#6200EE")); // Purple Material
+                  name.setTextColor(Color.parseColor("#6200EE"));
                   name.setTextSize(20);
                   name.setPadding(0, 0, 0, 50);
                   root.addView(name);
 
-                  // Jam Utama (Besar)
                   TextClock clock = new TextClock(this);
                   clock.setTextSize(60);
                   clock.setTextColor(Color.BLACK);
                   clock.setFormat24Hour("HH:mm:ss");
                   root.addView(clock);
 
-                  // Input Timer (Menit)
                   input = new EditText(this);
                   input.setHint("Set Menit");
                   input.setTextColor(Color.BLACK);
-                  input.setHintTextColor(Color.GRAY);
                   input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
                   input.setGravity(Gravity.CENTER);
-                  input.setPadding(0, 50, 0, 20);
                   root.addView(input);
 
-                  // Display Hitung Mundur
                   timerDisplay = new TextView(this);
                   timerDisplay.setText("00:00");
                   timerDisplay.setTextSize(40);
                   timerDisplay.setTextColor(Color.RED);
                   root.addView(timerDisplay);
 
-                  // Tombol Modern
                   startBtn = new MaterialButton(this);
                   startBtn.setText("MULAI TIMER");
                   startBtn.setBackgroundColor(Color.parseColor("#6200EE"));
@@ -153,50 +137,35 @@ jobs:
                       if (!isRunning) {
                           String val = input.getText().toString();
                           if (!val.isEmpty()) {
-                              startTimer(Long.parseLong(val) * 60000);
+                              long millis = Long.parseLong(val) * 60000;
+                              if (timer != null) timer.cancel();
+                              timer = new CountDownTimer(millis, 1000) {
+                                  public void onTick(long ms) {
+                                      long sec = ms / 1000;
+                                      timerDisplay.setText(String.format("%02d:%02d", sec/60, sec%60));
+                                  }
+                                  public void onFinish() {
+                                      timerDisplay.setText("WAKTU HABIS!");
+                                      Uri n = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                                      r = RingtoneManager.getRingtone(getApplicationContext(), n);
+                                      if (r != null) r.play();
+                                  }
+                              }.start();
+                              startBtn.setText("STOP");
+                              startBtn.setBackgroundColor(Color.RED);
+                              isRunning = true;
                           }
                       } else {
-                          stopEverything();
+                          if (timer != null) timer.cancel();
+                          if (r != null && r.isPlaying()) r.stop();
+                          timerDisplay.setText("00:00");
+                          startBtn.setText("MULAI TIMER");
+                          startBtn.setBackgroundColor(Color.parseColor("#6200EE"));
+                          isRunning = false;
                       }
                   });
                   root.addView(startBtn);
-
                   setContentView(root);
-              }
-
-              private void startTimer(long millis) {
-                  if (timer != null) timer.cancel();
-                  if (r != null && r.isPlaying()) r.stop();
-
-                  timer = new CountDownTimer(millis, 1000) {
-                      public void onTick(long ms) {
-                          long sec = ms / 1000;
-                          timerDisplay.setText(String.format("%02d:%02d", sec/60, sec%60));
-                      }
-                      public void onFinish() {
-                          timerDisplay.setText("WAKTU HABIS!");
-                          // Bunyi Nada Dering
-                          Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-                          r = RingtoneManager.getRingtone(getApplicationContext(), notification);
-                          if (r != null) r.play();
-                      }
-                  }.start();
-                  
-                  startBtn.setText("STOP");
-                  startBtn.setBackgroundColor(Color.RED);
-                  input.setVisibility(View.GONE);
-                  isRunning = true;
-              }
-
-              private void stopEverything() {
-                  if (timer != null) timer.cancel();
-                  if (r != null && r.isPlaying()) r.stop();
-                  timerDisplay.setText("00:00");
-                  startBtn.setText("MULAI TIMER");
-                  startBtn.setBackgroundColor(Color.parseColor("#6200EE"));
-                  input.setVisibility(View.VISIBLE);
-                  input.setText("");
-                  isRunning = false;
               }
           }
           EOT
