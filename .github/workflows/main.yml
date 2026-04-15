@@ -1,4 +1,4 @@
-name: Build_APK_Rycl_Final_Boss
+name: Build_Jam_Simpel_Rycl
 
 on: [push, workflow_dispatch]
 
@@ -14,65 +14,90 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Project structure
+      - name: Eksekusi Operasi Bersih
         run: |
-          mkdir -p app/src/main/java/com/rycl/app
+          # 1. Hapus sisa-sisa folder lama biar gak bentrok
+          rm -rf app settings.gradle build.gradle
           
-          # 1. Settings file (Paling penting buat kasih tahu lokasi plugin)
-          cat <<EOT > settings.gradle
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "RyclApp"
-          include ':app'
-          EOT
-
-          # 2. Build file Utama (Cuma buat deklarasi versi plugin)
+          # 2. Buat folder baru yang fresh untuk package com.rycl.jam
+          mkdir -p app/src/main/java/com/rycl/jam
+          
+          # 3. Settings file
+          echo "rootProject.name = 'JamSimpel'" > settings.gradle
+          echo "include ':app'" >> settings.gradle
+          
+          # 4. Build file (PAKSA VERSI 12.12 DI SINI)
           cat <<EOT > build.gradle
           plugins {
               id 'com.android.application' version '8.2.2' apply false
-              id 'com.android.library' version '8.2.2' apply false
           }
           EOT
 
-          # 3. Build file App (Baru panggil pluginnya tanpa versi)
           cat <<EOT > app/build.gradle
-          plugins {
-              id 'com.android.application'
-          }
+          plugins { id 'com.android.application' }
           android {
-              namespace 'com.rycl.app'
+              namespace 'com.rycl.jam'
               compileSdk 34
               defaultConfig {
-                  applicationId "com.rycl.app"
+                  applicationId "com.rycl.jam"
                   minSdk 24
                   targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
+                  versionCode 1212
+                  versionName "12.12"
               }
           }
           EOT
 
-          # 4. Manifest
-          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rycl.app"><application/></manifest>' > app/src/main/AndroidManifest.xml
+          # 5. Manifest (BIAR MUNCUL DI HOME SCREEN)
+          cat <<EOT > app/src/main/AndroidManifest.xml
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application 
+                  android:label="Jam Simpel" 
+                  android:icon="@android:drawable/ic_menu_recent_history"
+                  android:allowBackup="true">
+                  <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOT
 
-      - name: Build with Gradle
+          # 6. Kode Java (TAMPILAN JAM)
+          cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
+          package com.rycl.jam;
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.widget.TextClock;
+          import android.widget.LinearLayout;
+          import android.view.Gravity;
+          import android.graphics.Color;
+
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  LinearLayout layout = new LinearLayout(this);
+                  layout.setGravity(Gravity.CENTER);
+                  layout.setBackgroundColor(Color.BLACK);
+                  TextClock jam = new TextClock(this);
+                  jam.setFormat24Hour("HH:mm:ss");
+                  jam.setTextSize(60);
+                  jam.setTextColor(Color.GREEN);
+                  layout.addView(jam);
+                  setContentView(layout);
+              }
+          }
+          EOT
+
+      - name: Build APK Final
         run: gradle :app:assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: APK_RYCL_BERHASIL
+          name: Jam_Simpel_V12_12
           path: app/build/outputs/apk/debug/*.apk
           
