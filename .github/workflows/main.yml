@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Final_RYCL_V5
+name: Build_Jam_Simpel_UCL_Edition
 
 on: [push, workflow_dispatch]
 
@@ -19,58 +19,56 @@ jobs:
           rm -rf app settings.gradle build.gradle gradle.properties
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
-          mkdir -p app/src/main/res/values
 
-          # 1. BENSINNYA (WAJIB ADA BIAR GAK ERROR ANDROIDX)
+          # 1. Properties
           echo "android.useAndroidX=true" > gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
 
-          # 2. CEK IKON
-          if [ -f "icon_app.png" ]; then
-            cp icon_app.png app/src/main/res/drawable/icon_app.png
-            ICON_VAL="@drawable/icon_app"
-          else
-            ICON_VAL="@android:drawable/ic_lock_idle_alarm"
-          fi
-
-          # 3. SETTINGS
-          echo "include ':app'" > settings.gradle
-
-          # 4. BUILD UTAMA
-          cat <<EOT > build.gradle
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+          # 2. Settings (Pake block plugins modern)
+          cat <<EOT > settings.gradle
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
           }
-          allprojects { repositories { google(); mavenCentral() } }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories { google(); mavenCentral() }
+          }
+          include ':app'
           EOT
 
-          # 5. BUILD APP
+          # 3. Build Utama (Kosongin aja, pindah ke app)
+          echo "buildscript { repositories { google(); mavenCentral() } }" > build.gradle
+
+          # 4. Build App (GAYA MODERN - ANTI MUTATION ERROR)
           cat <<EOT > app/build.gradle
-          apply plugin: 'com.android.application'
+          plugins {
+              id 'com.android.application' version '8.2.2'
+          }
+
           android {
-              compileSdkVersion 34
               namespace 'com.rycl.jam'
+              compileSdk 34
               defaultConfig {
-                  applicationId "com.rycl.jam.FINAL"
-                  minSdkVersion 24
-                  targetSdkVersion 34
+                  applicationId "com.rycl.jam.final.ucl"
+                  minSdk 24
+                  targetSdk 34
                   versionCode 1
                   versionName "1.0"
               }
           }
+
           dependencies {
-              implementation 'com.google.android.material:material:1.11.0'
               implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
           }
           EOT
 
-          # 6. MANIFEST
+          # 5. Manifest (Pake Ikon Sistem dulu biar GAK ERROR RESOURCE lagi)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application 
                   android:label="Jam Simpel" 
-                  android:icon="$ICON_VAL"
+                  android:icon="@android:drawable/ic_lock_idle_alarm"
                   android:theme="@style/Theme.MaterialComponents.Light.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
                       <intent-filter>
@@ -82,7 +80,7 @@ jobs:
           </manifest>
           EOT
 
-          # 7. KODE JAVA
+          # 6. Kode Java
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -91,9 +89,7 @@ jobs:
           import android.widget.*;
           import android.graphics.Color;
           import com.google.android.material.button.MaterialButton;
-          import android.media.Ringtone;
           import android.media.RingtoneManager;
-          import android.net.Uri;
 
           public class MainActivity extends Activity {
               private CountDownTimer timer;
@@ -101,7 +97,6 @@ jobs:
               private EditText input;
               private MaterialButton startBtn;
               private boolean isRunning = false;
-              private Ringtone r;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -110,68 +105,38 @@ jobs:
                   root.setOrientation(LinearLayout.VERTICAL);
                   root.setGravity(Gravity.CENTER);
                   root.setPadding(60, 100, 60, 60);
-                  root.setBackgroundColor(Color.parseColor("#F5F5F5"));
-
-                  TextView name = new TextView(this);
-                  name.setText("RYCL JAM");
-                  name.setTextColor(Color.parseColor("#6200EE"));
-                  name.setTextSize(20);
-                  name.setPadding(0, 0, 0, 50);
-                  root.addView(name);
+                  root.setBackgroundColor(Color.WHITE);
 
                   TextClock clock = new TextClock(this);
-                  clock.setTextSize(60);
-                  clock.setTextColor(Color.BLACK);
+                  clock.setTextSize(50);
                   clock.setFormat24Hour("HH:mm:ss");
                   root.addView(clock);
 
                   input = new EditText(this);
-                  input.setHint("Set Menit");
-                  input.setTextColor(Color.BLACK);
+                  input.setHint("Menit");
                   input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-                  input.setGravity(Gravity.CENTER);
                   root.addView(input);
 
                   timerDisplay = new TextView(this);
-                  timerDisplay.setText("00:00");
                   timerDisplay.setTextSize(40);
-                  timerDisplay.setTextColor(Color.RED);
+                  timerDisplay.setText("00:00");
                   root.addView(timerDisplay);
 
                   startBtn = new MaterialButton(this);
-                  startBtn.setText("MULAI TIMER");
-                  startBtn.setBackgroundColor(Color.parseColor("#6200EE"));
-                  startBtn.setTextColor(Color.WHITE);
-                  
+                  startBtn.setText("START");
                   startBtn.setOnClickListener(v -> {
-                      if (!isRunning) {
-                          String val = input.getText().toString();
-                          if (!val.isEmpty()) {
-                              long millis = Long.parseLong(val) * 60000;
-                              if (timer != null) timer.cancel();
-                              timer = new CountDownTimer(millis, 1000) {
-                                  public void onTick(long ms) {
-                                      long sec = ms / 1000;
-                                      timerDisplay.setText(String.format("%02d:%02d", sec/60, sec%60));
-                                  }
-                                  public void onFinish() {
-                                      timerDisplay.setText("WAKTU HABIS!");
-                                      Uri n = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-                                      r = RingtoneManager.getRingtone(getApplicationContext(), n);
-                                      if (r != null) r.play();
-                                  }
-                              }.start();
-                              startBtn.setText("STOP");
-                              startBtn.setBackgroundColor(Color.RED);
-                              isRunning = true;
-                          }
-                      } else {
-                          if (timer != null) timer.cancel();
-                          if (r != null && r.isPlaying()) r.stop();
-                          timerDisplay.setText("00:00");
-                          startBtn.setText("MULAI TIMER");
-                          startBtn.setBackgroundColor(Color.parseColor("#6200EE"));
-                          isRunning = false;
+                      if (!isRunning && !input.getText().toString().isEmpty()) {
+                          isRunning = true;
+                          timer = new CountDownTimer(Long.parseLong(input.getText().toString()) * 60000, 1000) {
+                              public void onTick(long ms) {
+                                  long sec = ms / 1000;
+                                  timerDisplay.setText(String.format("%02d:%02d", sec/60, sec%60));
+                              }
+                              public void onFinish() {
+                                  timerDisplay.setText("FINISH!");
+                                  RingtoneManager.getRingtone(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)).play();
+                              }
+                          }.start();
                       }
                   });
                   root.addView(startBtn);
@@ -186,6 +151,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Rycl_FIX_V5
+          name: Jam_Simpel_Final_UCL
           path: app/build/outputs/apk/debug/*.apk
           
