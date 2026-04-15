@@ -3,13 +3,14 @@ plugins {
 }
 
 android {
-    namespace 'com.rycl.app'
-    compileSdk 33
-            defaultConfig {
-                applicationId "com.rycl.jam"
-                minSdk 24
-                targetSdk 34
-                versionCode 1212
-                versionName "12.12"
-         }
+    namespace 'com.rycl.jam'  // Ubah dari .app jadi .jam
+    compileSdk 34
+    
+    defaultConfig {
+        applicationId "com.rycl.jam"
+        minSdk 24
+        targetSdk 34
+        versionCode 1212
+        versionName "12.12"
+    }
 }
