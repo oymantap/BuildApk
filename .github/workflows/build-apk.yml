@@ -23,8 +23,7 @@ jobs:
 
       - name: Proses Build APK
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle assembleDebug
 
       - name: Upload Hasil APK
         uses: actions/upload-artifact@v3
