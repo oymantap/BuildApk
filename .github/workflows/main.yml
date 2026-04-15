@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Final_Banget
+name: Build_Jam_Simpel_Final_Pasti_Muncul
 
 on: [push, workflow_dispatch]
 
@@ -14,56 +14,73 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Minimalist Project
+      - name: Create Structure
         run: |
+          # Bersihkan semua sampah lama
           rm -rf app settings.gradle build.gradle
           mkdir -p app/src/main/java/com/rycl/jam
-          
-          # 1. Settings (Hanya daftar modul, tanpa gudang biar gak bentrok)
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/values
+
+          # 1. Pindahkan Ikon Kamu (Jika ada di root)
+          if [ -f "icon_app.png" ]; then
+            cp icon_app.png app/src/main/res/drawable/icon_app.png
+            ICON_VAL="@drawable/icon_app"
+          else
+            # Fail-safe: Pakai ikon sistem biar gak error build
+            ICON_VAL="@android:drawable/ic_lock_idle_alarm"
+          fi
+
+          # 2. Settings (PENTING: Tanpa gudang biar gak bentrok)
           echo "include ':app'" > settings.gradle
 
-          # 2. Build File Utama (Tempat satu-satunya gudang Google)
+          # 3. Build File Utama (Gudang Google Cuma di Sini)
           cat <<EOT > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
               dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
           }
-          allprojects {
-              repositories { google(); mavenCentral() }
-          }
+          allprojects { repositories { google(); mavenCentral() } }
           EOT
 
-          # 3. Build File App (Langsung ke intinya)
+          # 4. Build File App (Pakai Material Design & Kunci Identitas)
           cat <<EOT > app/build.gradle
           apply plugin: 'com.android.application'
           android {
               compileSdkVersion 34
               namespace 'com.rycl.jam'
               defaultConfig {
-                  applicationId "com.rycl.jam"
+                  applicationId "com.rycl.jam.FINAL" # KUNCI IDENTITAS BARU
                   minSdkVersion 24
                   targetSdkVersion 34
-                  versionCode 1214
-                  versionName "12.14"
+                  versionCode 1
+                  versionName "1.0"
               }
+          }
+          dependencies {
+              implementation 'com.google.android.material:material:1.11.0'
           }
           EOT
 
-          # 4. Manifest (Ikon sistem biar aman)
+          # 5. Manifest (Theme Modern & Ikon Pasti Muncul)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-              <application android:label="Jam Simpel" android:icon="@android:drawable/ic_lock_idle_alarm">
+              <application 
+                  android:label="Jam Simpel" 
+                  android:icon="$ICON_VAL"
+                  android:allowBackup="true"
+                  android:theme="@style/Theme.MaterialComponents.Light.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
                       <intent-filter>
                           <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHer" />
+                          <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
               </application>
           </manifest>
           EOT
 
-          # 5. Kode Java (Jam + Timer)
+          # 6. Kode Java (UI Modern + Timer + Nada Dering)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -71,49 +88,115 @@ jobs:
           import android.view.*;
           import android.widget.*;
           import android.graphics.Color;
+          import com.google.android.material.button.MaterialButton;
+          import android.media.Ringtone;
           import android.media.RingtoneManager;
+          import android.net.Uri;
 
           public class MainActivity extends Activity {
               private CountDownTimer timer;
+              private TextView timerDisplay;
+              private EditText input;
+              private MaterialButton startBtn;
+              private boolean isRunning = false;
+              private Ringtone r;
+
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+                  
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
                   root.setGravity(Gravity.CENTER);
-                  root.setBackgroundColor(Color.BLACK);
+                  root.setPadding(60, 100, 60, 60);
+                  root.setBackgroundColor(Color.parseColor("#F5F5F5")); // Light Modern
 
+                  // Header Nama
                   TextView name = new TextView(this);
-                  name.setText("JAM RYCL");
-                  name.setTextColor(Color.WHITE);
+                  name.setText("RYCL JAM");
+                  name.setTextColor(Color.parseColor("#6200EE")); // Purple Material
+                  name.setTextSize(20);
+                  name.setPadding(0, 0, 0, 50);
                   root.addView(name);
 
+                  // Jam Utama (Besar)
                   TextClock clock = new TextClock(this);
-                  clock.setTextSize(50);
-                  clock.setTextColor(Color.WHITE);
+                  clock.setTextSize(60);
+                  clock.setTextColor(Color.BLACK);
+                  clock.setFormat24Hour("HH:mm:ss");
                   root.addView(clock);
 
-                  EditText input = new EditText(this);
-                  input.setHint("Menit");
-                  input.setTextColor(Color.WHITE);
+                  // Input Timer (Menit)
+                  input = new EditText(this);
+                  input.setHint("Set Menit");
+                  input.setTextColor(Color.BLACK);
+                  input.setHintTextColor(Color.GRAY);
                   input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+                  input.setGravity(Gravity.CENTER);
+                  input.setPadding(0, 50, 0, 20);
                   root.addView(input);
 
-                  Button btn = new Button(this);
-                  btn.setText("START");
-                  root.addView(btn);
+                  // Display Hitung Mundur
+                  timerDisplay = new TextView(this);
+                  timerDisplay.setText("00:00");
+                  timerDisplay.setTextSize(40);
+                  timerDisplay.setTextColor(Color.RED);
+                  root.addView(timerDisplay);
 
-                  btn.setOnClickListener(v -> {
-                      if(!input.getText().toString().isEmpty()) {
-                          new CountDownTimer(Long.parseLong(input.getText().toString()) * 60000, 1000) {
-                              public void onTick(long ms) {}
-                              public void onFinish() {
-                                  RingtoneManager.getRingtone(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)).play();
-                              }
-                          }.start();
+                  // Tombol Modern
+                  startBtn = new MaterialButton(this);
+                  startBtn.setText("MULAI TIMER");
+                  startBtn.setBackgroundColor(Color.parseColor("#6200EE"));
+                  startBtn.setTextColor(Color.WHITE);
+                  
+                  startBtn.setOnClickListener(v -> {
+                      if (!isRunning) {
+                          String val = input.getText().toString();
+                          if (!val.isEmpty()) {
+                              startTimer(Long.parseLong(val) * 60000);
+                          }
+                      } else {
+                          stopEverything();
                       }
                   });
+                  root.addView(startBtn);
+
                   setContentView(root);
+              }
+
+              private void startTimer(long millis) {
+                  if (timer != null) timer.cancel();
+                  if (r != null && r.isPlaying()) r.stop();
+
+                  timer = new CountDownTimer(millis, 1000) {
+                      public void onTick(long ms) {
+                          long sec = ms / 1000;
+                          timerDisplay.setText(String.format("%02d:%02d", sec/60, sec%60));
+                      }
+                      public void onFinish() {
+                          timerDisplay.setText("WAKTU HABIS!");
+                          // Bunyi Nada Dering
+                          Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                          r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+                          if (r != null) r.play();
+                      }
+                  }.start();
+                  
+                  startBtn.setText("STOP");
+                  startBtn.setBackgroundColor(Color.RED);
+                  input.setVisibility(View.GONE);
+                  isRunning = true;
+              }
+
+              private void stopEverything() {
+                  if (timer != null) timer.cancel();
+                  if (r != null && r.isPlaying()) r.stop();
+                  timerDisplay.setText("00:00");
+                  startBtn.setText("MULAI TIMER");
+                  startBtn.setBackgroundColor(Color.parseColor("#6200EE"));
+                  input.setVisibility(View.VISIBLE);
+                  input.setText("");
+                  isRunning = false;
               }
           }
           EOT
@@ -124,6 +207,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Final
+          name: Jam_Simpel_Rycl_Pasti_Muncul
           path: app/build/outputs/apk/debug/*.apk
           
