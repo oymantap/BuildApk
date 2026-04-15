@@ -1,4 +1,4 @@
-name: Build_FINAL_TOTAL_RYCL_NO_ERROR
+name: Build_Jam_Simpel_Rycl_Ultra_Fix
 
 on: [push, workflow_dispatch]
 
@@ -14,9 +14,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Project
+      - name: Create Structure
         run: |
-          rm -rf app settings.gradle build.gradle gradle.properties
+          rm -rf app settings.gradle build.gradle
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
 
@@ -40,20 +40,21 @@ jobs:
               namespace 'com.rycl.jam'
               compileSdkVersion 34
               defaultConfig {
-                  applicationId "com.rycl.jam.fix.final.berhasil"
+                  applicationId "com.rycl.jam.v3.final"
                   minSdkVersion 24
                   targetSdkVersion 34
-                  versionCode 1
-                  versionName "1.0"
+                  versionCode 1219
+                  versionName "12.19"
               }
           }
-          dependencies {
-              // KOSONG TOTAL - ANTI MUTATION ERROR
-          }
+          dependencies {}
           EOT
 
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
               <application 
                   android:label="Jam Simpel" 
                   android:icon="@drawable/icon_app" 
@@ -64,103 +65,122 @@ jobs:
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
+                  <receiver android:name="com.rycl.jam.AlarmReceiver" android:exported="false" />
               </application>
           </manifest>
           EOT
 
+          cat <<EOT > app/src/main/java/com/rycl/jam/AlarmReceiver.java
+          package com.rycl.jam;
+          import android.content.*;
+          import android.media.*;
+          import android.widget.Toast;
+
+          public class AlarmReceiver extends BroadcastReceiver {
+              @Override
+              public void onReceive(Context context, Intent intent) {
+                  Toast.makeText(context, "WAKTU HABIS! ALARM RYCL BUNYI!", Toast.LENGTH_LONG).show();
+                  Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                  Ringtone r = RingtoneManager.getRingtone(context, notification);
+                  if (r != null) {
+                      r.setStreamType(AudioManager.STREAM_ALARM);
+                      r.play();
+                  }
+              }
+          }
+          EOT
+
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
-          import android.app.Activity;
+          import android.app.*;
+          import android.content.*;
           import android.os.*;
           import android.view.*;
           import android.widget.*;
           import android.graphics.Color;
-          import android.media.Ringtone;
-          import android.media.RingtoneManager;
+          import java.util.Calendar;
 
           public class MainActivity extends Activity {
-              private Ringtone ring;
-              private CountDownTimer cdt;
               @Override
               protected void onCreate(Bundle b) {
                   super.onCreate(b);
                   LinearLayout root = new LinearLayout(this);
-                  root.setOrientation(1);
-                  root.setGravity(Gravity.CENTER);
+                  root.setOrientation(1); root.setGravity(Gravity.CENTER);
                   root.setBackgroundColor(Color.parseColor("#121212"));
 
-                  TextView head = new TextView(this);
-                  head.setText("JAM SIMPEL"); head.setTextColor(Color.WHITE);
-                  head.setTextSize(24); head.setPadding(0, 40, 0, 40);
-                  root.addView(head);
-
-                  final TextClock clock = new TextClock(this);
-                  clock.setTextSize(60); clock.setTextColor(Color.CYAN);
+                  // --- FITUR 1: JAM ---
+                  TextClock clock = new TextClock(this);
+                  clock.setTextSize(50); clock.setTextColor(Color.WHITE);
                   root.addView(clock);
 
-                  final LinearLayout tL = new LinearLayout(this);
-                  tL.setOrientation(1); tL.setGravity(Gravity.CENTER);
-                  tL.setPadding(0, 50, 0, 50);
+                  // --- FITUR 2: TIMER (DURASI) ---
+                  TextView t2 = new TextView(this);
+                  t2.setText("\nTIMER (MENIT)"); t2.setTextColor(Color.CYAN);
+                  root.addView(t2);
 
-                  final TextView tvDisp = new TextView(this);
-                  tvDisp.setText("00:00:00"); tvDisp.setTextSize(50); tvDisp.setTextColor(Color.YELLOW);
-                  tL.addView(tvDisp);
+                  final EditText inTimer = new EditText(this);
+                  inTimer.setHint("Berapa Menit?"); inTimer.setTextColor(Color.WHITE); inTimer.setInputType(2);
+                  root.addView(inTimer);
 
-                  LinearLayout ins = new LinearLayout(this);
-                  ins.setGravity(Gravity.CENTER);
-                  final EditText eH = new EditText(this); eH.setHint("H"); eH.setTextColor(Color.WHITE);
-                  final EditText eM = new EditText(this); eM.setHint("M"); eM.setTextColor(Color.WHITE);
-                  final EditText eS = new EditText(this); eS.setHint("S"); eS.setTextColor(Color.WHITE);
-                  eH.setInputType(2); eM.setInputType(2); eS.setInputType(2);
-                  ins.addView(eH); ins.addView(eM); ins.addView(eS);
-                  tL.addView(ins);
+                  Button btnTimer = new Button(this);
+                  btnTimer.setText("START TIMER");
+                  root.addView(btnTimer);
 
-                  final Button btn = new Button(this);
-                  btn.setText("START TIMER");
-                  tL.addView(btn);
+                  // --- FITUR 3: ALARM (JAM TERTENTU) ---
+                  TextView t3 = new TextView(this);
+                  t3.setText("\nALARM (JAM & MENIT)"); t3.setTextColor(Color.YELLOW);
+                  root.addView(t3);
 
-                  final Button stopBtn = new Button(this);
-                  stopBtn.setText("MATIKAN ALARM"); stopBtn.setVisibility(8);
-                  stopBtn.setBackgroundColor(Color.RED);
-                  tL.addView(stopBtn);
-                  root.addView(tL);
+                  LinearLayout row = new LinearLayout(this);
+                  row.setGravity(Gravity.CENTER);
+                  final EditText inH = new EditText(this); inH.setHint("Jam (0-23)"); inH.setTextColor(Color.WHITE); inH.setInputType(2);
+                  final EditText inM = new EditText(this); inM.setHint("Menit"); inM.setTextColor(Color.WHITE); inM.setInputType(2);
+                  row.addView(inH); row.addView(inM);
+                  root.addView(row);
+
+                  Button btnAlarm = new Button(this);
+                  btnAlarm.setText("SET ALARM");
+                  root.addView(btnAlarm);
 
                   TextView wm = new TextView(this);
-                  wm.setText("Powered by Rycl"); wm.setTextSize(10);
+                  wm.setText("\n\nPowered by Rycl"); wm.setTextSize(10);
                   wm.setTextColor(Color.DKGRAY); wm.setGravity(1);
-                  wm.setPadding(0, 50, 0, 20);
                   root.addView(wm);
 
-                  btn.setOnClickListener(v -> {
-                      long time = (gv(eH)*3600 + gv(eM)*60 + gv(eS)) * 1000;
-                      if(time > 0) {
-                          if(cdt != null) cdt.cancel();
-                          cdt = new CountDownTimer(time, 1000) {
-                              public void onTick(long l) {
-                                  long h=l/3600000, m=(l%3600000)/60000, s=(l%60000)/1000;
-                                  tvDisp.setText(String.format("%02d:%02d:%02d", h, m, s));
-                              }
-                              public void onFinish() {
-                                  tvDisp.setText("TIME UP!");
-                                  ring = RingtoneManager.getRingtone(getApplicationContext(), RingtoneManager.getDefaultUri(4));
-                                  if(ring != null) { ring.setLooping(true); ring.play(); }
-                                  btn.setVisibility(8); stopBtn.setVisibility(0);
-                              }
-                          }.start();
-                      }
+                  // LOGIC TIMER
+                  btnTimer.setOnClickListener(v -> {
+                      setAlarmSystem(Long.parseLong(inTimer.getText().toString()) * 60000);
+                      Toast.makeText(this, "Timer dipasang!", 0).show();
                   });
 
-                  stopBtn.setOnClickListener(v -> {
-                      if(ring != null) ring.stop();
-                      stopBtn.setVisibility(8); btn.setVisibility(0);
-                      tvDisp.setText("00:00:00");
+                  // LOGIC ALARM
+                  btnAlarm.setOnClickListener(v -> {
+                      Calendar cal = Calendar.getInstance();
+                      cal.set(Calendar.HOUR_OF_DAY, Integer.parseInt(inH.getText().toString()));
+                      cal.set(Calendar.MINUTE, Integer.parseInt(inM.getText().toString()));
+                      cal.set(Calendar.SECOND, 0);
+                      
+                      long diff = cal.getTimeInMillis() - System.currentTimeMillis();
+                      if(diff < 0) diff += 24 * 3600000; // Jika lewat, set buat besok
+                      
+                      setAlarmSystem(diff);
+                      Toast.makeText(this, "Alarm disetel!", 0).show();
                   });
 
                   setContentView(root);
               }
-              private long gv(EditText e) {
-                  String s = e.getText().toString();
-                  return s.isEmpty() ? 0 : Long.parseLong(s);
+
+              private void setAlarmSystem(long delayMs) {
+                  AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                  Intent i = new Intent(this, AlarmReceiver.class);
+                  PendingIntent pi = PendingIntent.getBroadcast(this, 0, i, PendingIntent.FLAG_IMMUTABLE);
+                  long trigger = System.currentTimeMillis() + delayMs;
+                  
+                  if (Build.VERSION.SDK_INT >= 31) {
+                      am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
+                  } else {
+                      am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi);
+                  }
               }
           }
           EOT
@@ -171,6 +191,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Rycl_Berhasil
+          name: Jam_Simpel_Rycl_Lengkap
           path: app/build/outputs/apk/debug/*.apk
           
