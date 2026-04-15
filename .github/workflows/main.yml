@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_Final_RYCL_FIX
+name: Build_Jam_Simpel_Final_RYCL_V5
 
 on: [push, workflow_dispatch]
 
@@ -16,11 +16,16 @@ jobs:
 
       - name: Create Structure
         run: |
-          rm -rf app settings.gradle build.gradle
+          rm -rf app settings.gradle build.gradle gradle.properties
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
           mkdir -p app/src/main/res/values
 
+          # 1. BENSINNYA (WAJIB ADA BIAR GAK ERROR ANDROIDX)
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+
+          # 2. CEK IKON
           if [ -f "icon_app.png" ]; then
             cp icon_app.png app/src/main/res/drawable/icon_app.png
             ICON_VAL="@drawable/icon_app"
@@ -28,8 +33,10 @@ jobs:
             ICON_VAL="@android:drawable/ic_lock_idle_alarm"
           fi
 
+          # 3. SETTINGS
           echo "include ':app'" > settings.gradle
 
+          # 4. BUILD UTAMA
           cat <<EOT > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -38,6 +45,7 @@ jobs:
           allprojects { repositories { google(); mavenCentral() } }
           EOT
 
+          # 5. BUILD APP
           cat <<EOT > app/build.gradle
           apply plugin: 'com.android.application'
           android {
@@ -53,15 +61,16 @@ jobs:
           }
           dependencies {
               implementation 'com.google.android.material:material:1.11.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
           }
           EOT
 
+          # 6. MANIFEST
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application 
                   android:label="Jam Simpel" 
                   android:icon="$ICON_VAL"
-                  android:allowBackup="true"
                   android:theme="@style/Theme.MaterialComponents.Light.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true">
                       <intent-filter>
@@ -73,6 +82,7 @@ jobs:
           </manifest>
           EOT
 
+          # 7. KODE JAVA
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -176,6 +186,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Rycl_Pasti_Muncul
+          name: Jam_Simpel_Rycl_FIX_V5
           path: app/build/outputs/apk/debug/*.apk
           
