@@ -1,4 +1,4 @@
-name: Build_Jam_Rycl_With_Stop_Button
+name: Build_Jam_Rycl_Final_Fixed_AndroidX
 
 on: [push, workflow_dispatch]
 
@@ -16,10 +16,18 @@ jobs:
 
       - name: Create Structure
         run: |
-          rm -rf app settings.gradle build.gradle
+          rm -rf app settings.gradle build.gradle gradle.properties
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
-          [ -f "icon_app.png" ] && cp icon_app.png app/src/main/res/drawable/icon_app.png
+
+          # FIX: NYALAKAN SAKLAR ANDROIDX
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+
+          if [ -f "icon_app.png" ]; then
+            cp icon_app.png app/src/main/res/drawable/icon_app.png
+          fi
+
           echo "include ':app'" > settings.gradle
           echo "buildscript { repositories { google(); mavenCentral() }; dependencies { classpath 'com.android.tools.build:gradle:8.2.2' } }" > build.gradle
           echo "allprojects { repositories { google(); mavenCentral() } }" >> build.gradle
@@ -29,7 +37,13 @@ jobs:
           android {
               namespace 'com.rycl.jam'
               compileSdkVersion 34
-              defaultConfig { applicationId "com.rycl.jam.v3.final"; minSdk 24; targetSdk 34; versionCode 1211; versionName "12.11" }
+              defaultConfig { 
+                  applicationId "com.rycl.jam.v3.final"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1211
+                  versionName "12.11"
+              }
           }
           dependencies {
               implementation 'androidx.core:core:1.12.0'
@@ -62,37 +76,31 @@ jobs:
               private static Ringtone ringtone;
               @Override
               public void onReceive(Context context, Intent intent) {
-                  String action = intent.getAction();
-                  if ("STOP_ALARM".equals(action)) {
+                  if ("STOP_ALARM".equals(intent.getAction())) {
                       if (ringtone != null) ringtone.stop();
                       NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
                       nm.cancel(101);
                       return;
                   }
-
                   Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                   if (ringtone == null) ringtone = RingtoneManager.getRingtone(context, uri);
                   ringtone.play();
-
                   NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
                   if (android.os.Build.VERSION.SDK_INT >= 26) {
                       nm.createNotificationChannel(new NotificationChannel("RYCL", "Alarm", NotificationManager.IMPORTANCE_HIGH));
                   }
-
-                  Intent stopIntent = new Intent(context, AlarmReceiver.class);
-                  stopIntent.setAction("STOP_ALARM");
-                  PendingIntent stopPI = PendingIntent.getBroadcast(context, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-
-                  Notification notif = new NotificationCompat.Builder(context, "RYCL")
+                  Intent stopI = new Intent(context, AlarmReceiver.class);
+                  stopI.setAction("STOP_ALARM");
+                  PendingIntent stopPI = PendingIntent.getBroadcast(context, 0, stopI, PendingIntent.FLAG_IMMUTABLE);
+                  Notification n = new NotificationCompat.Builder(context, "RYCL")
                       .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                       .setContentTitle("ALARM RYCL")
-                      .setContentText("Waktu Habis! Klik stop untuk mematikan.")
+                      .setContentText("Waktu Habis!")
                       .setPriority(NotificationCompat.PRIORITY_MAX)
-                      .setCategory(NotificationCompat.CATEGORY_ALARM)
-                      .addAction(android.R.drawable.ic_menu_close_clear_cancel, "MATIKAN ALARM", stopPI)
+                      .addAction(android.R.drawable.ic_menu_close_clear_cancel, "MATIKAN", stopPI)
                       .setOngoing(true)
                       .build();
-                  nm.notify(101, notif);
+                  nm.notify(101, n);
               }
           }
           EOT
@@ -133,7 +141,6 @@ jobs:
                   bT.setOnClickListener(v -> {
                       if(!inT.getText().toString().isEmpty()) setA(Long.parseLong(inT.getText().toString()) * 60000);
                   });
-
                   bA.setOnClickListener(v -> {
                       if(!inH.getText().toString().isEmpty() && !inM.getText().toString().isEmpty()){
                           Calendar c = Calendar.getInstance();
@@ -147,11 +154,10 @@ jobs:
                   });
                   setContentView(root);
               }
-
               private void setA(long ms) {
                   AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
                   Intent i = new Intent(this, AlarmReceiver.class);
-                  PendingIntent pi = PendingIntent.getBroadcast(this, 1, i, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+                  PendingIntent pi = PendingIntent.getBroadcast(this, (int)System.currentTimeMillis(), i, PendingIntent.FLAG_IMMUTABLE);
                   if (Build.VERSION.SDK_INT >= 31) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + ms, pi);
                   else am.setExact(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + ms, pi);
                   Toast.makeText(this, "Alarm Disetel!", 0).show();
@@ -165,6 +171,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Final_With_Stop
+          name: Jam_Simpel_Rycl_Final_IJO
           path: app/build/outputs/apk/debug/*.apk
           
