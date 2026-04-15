@@ -1,4 +1,4 @@
-name: Build_APK_Rycl
+name: Build_APK_Rycl_Fix
 
 on: [push, workflow_dispatch]
 
@@ -8,45 +8,48 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build Android Proyek
+      - name: Create Structure and Build
         run: |
-          # Buat struktur dasar dalam satu kali sikat
-          mkdir -p app/src/main
-          echo 'rootProject.name = "RyclApp"' > settings.gradle
+          # 1. Buat folder dulu
+          mkdir -p app/src/main/java/com/rycl/app
+          
+          # 2. File Settings yang simpel
+          echo "rootProject.name = 'RyclApp'" > settings.gradle
           echo "include ':app'" >> settings.gradle
           
-          # Build file utama
-          cat <<EOT > build.gradle
-          buildscript {
-              repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
-          }
-          EOT
-
+          # 3. Build file versi modern (Tanpa buildscript ribet)
           cat <<EOT > app/build.gradle
-          plugins { id 'com.android.application' }
+          plugins {
+              id 'com.android.application'
+          }
           android {
               namespace 'com.rycl.app'
-              compileSdk 33
-              defaultConfig { applicationId "com.rycl.app"; minSdk 21; targetSdk 33; versionCode 1; versionName "1.0" }
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.rycl.app"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
           }
           EOT
 
-          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android"><application/></manifest>' > app/src/main/AndroidManifest.xml
+          # 4. Manifest minimalis
+          echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.rycl.app"><application/></manifest>' > app/src/main/AndroidManifest.xml
 
-          # Perintah rakit APK
-          chmod +x gradlew || true
-          gradle assembleDebug
+          # 5. Eksekusi build (Langsung pakai perintah gradle bawaan runner)
+          gradle assembleDebug --no-daemon
 
-      - name: Ambil Hasilnya
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: APK_RYCL_SUKSES
+          name: APK_RYCL_JADI
           path: app/build/outputs/apk/debug/*.apk
-
+          
