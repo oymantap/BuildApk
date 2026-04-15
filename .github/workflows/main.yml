@@ -1,4 +1,4 @@
-name: Build_Jam_Simpel_RYCL_STOP_ERROR
+name: Build_Jam_Simpel_Rycl_Pasti_Ijo
 
 on: [push, workflow_dispatch]
 
@@ -14,17 +14,13 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Create Structure
+      - name: Create Project
         run: |
-          # Bersihkan total
           rm -rf app settings.gradle build.gradle gradle.properties
           mkdir -p app/src/main/java/com/rycl/jam
-          mkdir -p app/src/main/res/layout
           
-          # 1. Settings Paling Dasar
           echo "include ':app'" > settings.gradle
 
-          # 2. Build Root Minimalis
           cat <<EOT > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -33,7 +29,6 @@ jobs:
           allprojects { repositories { google(); mavenCentral() } }
           EOT
 
-          # 3. Build App Tanpa Library Luar (ANTI-MUTATION)
           cat <<EOT > app/build.gradle
           apply plugin: 'com.android.application'
           android {
@@ -47,11 +42,9 @@ jobs:
                   versionName "1.0"
               }
           }
-          # Dependencies dikosongkan biar gak error mutation lagi
           dependencies {}
           EOT
 
-          # 4. Manifest (Ikon Sistem & Theme Standar)
           cat <<EOT > app/src/main/AndroidManifest.xml
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <application 
@@ -68,7 +61,6 @@ jobs:
           </manifest>
           EOT
 
-          # 5. Kode Java (Fitur Timer + Alarm - Gak pake library luar)
           cat <<EOT > app/src/main/java/com/rycl/jam/MainActivity.java
           package com.rycl.jam;
           import android.app.Activity;
@@ -95,9 +87,8 @@ jobs:
 
                   final EditText input = new EditText(this);
                   input.setHint("Menit");
-                  input.setHintTextColor(Color.GRAY);
                   input.setTextColor(Color.WHITE);
-                  input.setInputType(2); // TYPE_CLASS_NUMBER
+                  input.setInputType(2);
                   root.addView(input);
 
                   final TextView tv = new TextView(this);
@@ -107,7 +98,7 @@ jobs:
                   root.addView(tv);
 
                   Button btn = new Button(this);
-                  btn.setText("MULAI TIMER");
+                  btn.setText("START");
                   btn.setOnClickListener(new View.OnClickListener() {
                       public void onClick(View v) {
                           String s = input.getText().toString();
@@ -119,7 +110,7 @@ jobs:
                                       tv.setText(String.format("%02d:%02d", sec/60, sec%60));
                                   }
                                   public void onFinish() {
-                                      tv.setText("HABIS!");
+                                      tv.setText("DONE!");
                                       RingtoneManager.getRingtone(getApplicationContext(), 
                                           RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)).play();
                                   }
@@ -139,6 +130,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Simpel_Rycl_Sukses
+          name: Jam_Simpel_Rycl_SUKSES_IJO
           path: app/build/outputs/apk/debug/*.apk
           
