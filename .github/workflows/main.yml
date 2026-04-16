@@ -1,4 +1,4 @@
-name: Build_Jam_Rycl_Ultra_Final_Pro
+name: Build_Jam_But_Rycl_Special
 
 on: [push, workflow_dispatch]
 
@@ -41,7 +41,7 @@ jobs:
               namespace 'com.rycl.jam'
               compileSdkVersion 34
               defaultConfig { 
-                  applicationId "com.rycl.jam.vfinal"
+                  applicationId "com.rycl.jam.but"
                   minSdk 24
                   targetSdk 34
                   versionCode 1211
@@ -82,7 +82,7 @@ jobs:
               @Override
               public void onReceive(Context context, Intent intent) {
                   PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-                  PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RyclJam:WakeLock");
+                  PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "JamBut:Wake");
                   wl.acquire(10000);
 
                   Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
@@ -108,7 +108,6 @@ jobs:
               private EditText inTH, inTM, inTS, inAH, inAM;
               private CountDownTimer cdt;
               private boolean timerRunning = false;
-              private long timerMs = 0;
 
               @Override
               protected void onCreate(Bundle b) {
@@ -127,8 +126,7 @@ jobs:
                   clock.setTextSize(30); clock.setTextColor(Color.WHITE);
                   root.addView(clock);
 
-                  // TIMER SECTION
-                  addLabel(root, "TIMER (Jam : Min : Det)");
+                  addLabel(root, "\nTIMER (Jam : Min : Det)");
                   LinearLayout rowT = new LinearLayout(this);
                   rowT.setGravity(Gravity.CENTER);
                   inTH = addInput(rowT, "H"); inTM = addInput(rowT, "M"); inTS = addInput(rowT, "S");
@@ -136,13 +134,12 @@ jobs:
 
                   tvTimer = new TextView(this);
                   tvTimer.setText("00:00:00"); tvTimer.setTextSize(50);
-                  tvTimer.setTextColor(Color.CYAN); tvTimer.setGravity(Gravity.CENTER);
+                  tvTimer.setTextColor(Color.parseColor("#38BDF8")); tvTimer.setGravity(Gravity.CENTER);
                   root.addView(tvTimer);
 
                   Button bT = new Button(this); bT.setText("START TIMER"); styleBtn(bT, "#0EA5E9");
                   root.addView(bT);
 
-                  // ALARM SECTION
                   addLabel(root, "\nALARM (Jam : Menit)");
                   LinearLayout rowA = new LinearLayout(this);
                   rowA.setGravity(Gravity.CENTER);
@@ -152,10 +149,17 @@ jobs:
                   Button bA = new Button(this); bA.setText("SET ALARM"); styleBtn(bA, "#8B5CF6");
                   root.addView(bA);
 
-                  // STOP SECTION
                   View v = new View(this); root.addView(v, new LinearLayout.LayoutParams(1, 50));
                   Button bStop = new Button(this); bStop.setText("MATIKAN SUARA"); styleBtn(bStop, "#EF4444");
                   root.addView(bStop);
+
+                  // WATERMARK
+                  TextView wm = new TextView(this);
+                  wm.setText("\nPowered by Rycl");
+                  wm.setTextColor(Color.parseColor("#475569"));
+                  wm.setGravity(Gravity.CENTER);
+                  wm.setPadding(0, 40, 0, 20);
+                  root.addView(wm);
 
                   bT.setOnClickListener(v1 -> {
                       if(!timerRunning) {
@@ -241,6 +245,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Rycl_Ultra_Final
+          name: Jam_But_v12.11
           path: app/build/outputs/apk/debug/*.apk
           
