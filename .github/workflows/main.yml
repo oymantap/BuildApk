@@ -1,4 +1,4 @@
-name: Build_Jam_Rycl_Icon_Fixed
+name: Build_Jam_Rycl_Ultra_Final_Pro
 
 on: [push, workflow_dispatch]
 
@@ -16,19 +16,12 @@ jobs:
 
       - name: Create Structure
         run: |
-          # Bersihkan sisa build lama
           rm -rf app settings.gradle build.gradle gradle.properties
-          
-          # Buat folder yang dibutuhkan
           mkdir -p app/src/main/java/com/rycl/jam
           mkdir -p app/src/main/res/drawable
           
-          # COPY ICON DARI ROOT KE PROJECT (Penting!)
           if [ -f "icon_app.png" ]; then
             cp icon_app.png app/src/main/res/drawable/icon_app.png
-            echo "Ikon ditemukan dan disalin."
-          else
-            echo "Peringatan: icon_app.png tidak ditemukan di root!"
           fi
 
           echo "include ':app'" > settings.gradle
@@ -48,11 +41,11 @@ jobs:
               namespace 'com.rycl.jam'
               compileSdkVersion 34
               defaultConfig { 
-                  applicationId "com.rycl.jam.modern.final"
+                  applicationId "com.rycl.jam.vfinal"
                   minSdk 24
                   targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
+                  versionCode 1211
+                  versionName "12.11"
               }
           }
           EOT
@@ -61,8 +54,9 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
               <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
               <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
               <application 
-                  android:label="Jam Rycl" 
+                  android:label="Jam But" 
                   android:icon="@drawable/icon_app" 
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity android:name="com.rycl.jam.MainActivity" android:exported="true" android:launchMode="singleTop">
@@ -81,16 +75,19 @@ jobs:
           import android.content.*;
           import android.media.*;
           import android.net.Uri;
-          import android.widget.Toast;
+          import android.os.PowerManager;
 
           public class AlarmReceiver extends BroadcastReceiver {
               public static Ringtone r;
               @Override
               public void onReceive(Context context, Intent intent) {
-                  Toast.makeText(context, "ALARM BUNYI!", Toast.LENGTH_LONG).show();
+                  PowerManager pm = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+                  PowerManager.WakeLock wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "RyclJam:WakeLock");
+                  wl.acquire(10000);
+
                   Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                   if (r == null) r = RingtoneManager.getRingtone(context, uri);
-                  r.play();
+                  if (r != null) r.play();
               }
           }
           EOT
@@ -104,123 +101,135 @@ jobs:
           import android.widget.*;
           import android.graphics.Color;
           import android.graphics.drawable.GradientDrawable;
+          import java.util.Calendar;
 
           public class MainActivity extends Activity {
-              private long timeLeft = 0;
-              private boolean isRunning = false;
-              private CountDownTimer timer;
               private TextView tvTimer;
-              private EditText inT;
-              private Button btnStartPause;
+              private EditText inTH, inTM, inTS, inAH, inAM;
+              private CountDownTimer cdt;
+              private boolean timerRunning = false;
+              private long timerMs = 0;
 
               @Override
               protected void onCreate(Bundle b) {
                   super.onCreate(b);
-                  if(AlarmReceiver.r != null) AlarmReceiver.r.stop();
+                  stopSound();
 
+                  ScrollView scroll = new ScrollView(this);
                   LinearLayout root = new LinearLayout(this);
                   root.setOrientation(LinearLayout.VERTICAL);
-                  root.setGravity(Gravity.CENTER);
+                  root.setGravity(Gravity.CENTER_HORIZONTAL);
                   root.setBackgroundColor(Color.parseColor("#0F172A"));
-                  root.setPadding(60, 60, 60, 60);
+                  root.setPadding(40, 60, 40, 60);
+                  scroll.addView(root);
 
                   TextClock clock = new TextClock(this);
-                  clock.setTextSize(35); clock.setTextColor(Color.WHITE);
+                  clock.setTextSize(30); clock.setTextColor(Color.WHITE);
                   root.addView(clock);
 
+                  // TIMER SECTION
+                  addLabel(root, "TIMER (Jam : Min : Det)");
+                  LinearLayout rowT = new LinearLayout(this);
+                  rowT.setGravity(Gravity.CENTER);
+                  inTH = addInput(rowT, "H"); inTM = addInput(rowT, "M"); inTS = addInput(rowT, "S");
+                  root.addView(rowT);
+
                   tvTimer = new TextView(this);
-                  tvTimer.setText("00:00"); tvTimer.setTextSize(90); tvTimer.setTextColor(Color.parseColor("#38BDF8"));
-                  tvTimer.setPadding(0, 50, 0, 50);
+                  tvTimer.setText("00:00:00"); tvTimer.setTextSize(50);
+                  tvTimer.setTextColor(Color.CYAN); tvTimer.setGravity(Gravity.CENTER);
                   root.addView(tvTimer);
 
-                  inT = new EditText(this);
-                  inT.setHint("Menit"); inT.setHintTextColor(Color.GRAY);
-                  inT.setTextColor(Color.WHITE); inT.setInputType(2);
-                  inT.setGravity(Gravity.CENTER);
-                  
-                  GradientDrawable gdInput = new GradientDrawable();
-                  gdInput.setColor(Color.parseColor("#1E293B"));
-                  gdInput.setCornerRadius(20);
-                  inT.setBackground(gdInput);
-                  inT.setPadding(20, 30, 20, 30);
-                  
-                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-                  lp.setMargins(0, 20, 0, 40);
-                  root.addView(inT, lp);
+                  Button bT = new Button(this); bT.setText("START TIMER"); styleBtn(bT, "#0EA5E9");
+                  root.addView(bT);
 
-                  btnStartPause = new Button(this);
-                  btnStartPause.setText("START");
-                  btnStartPause.setTextColor(Color.WHITE);
-                  styleButton(btnStartPause, "#0EA5E9");
-                  root.addView(btnStartPause);
+                  // ALARM SECTION
+                  addLabel(root, "\nALARM (Jam : Menit)");
+                  LinearLayout rowA = new LinearLayout(this);
+                  rowA.setGravity(Gravity.CENTER);
+                  inAH = addInput(rowA, "Jam"); inAM = addInput(rowA, "Min");
+                  root.addView(rowA);
 
-                  View s = new View(this);
-                  root.addView(s, new LinearLayout.LayoutParams(1, 30));
+                  Button bA = new Button(this); bA.setText("SET ALARM"); styleBtn(bA, "#8B5CF6");
+                  root.addView(bA);
 
-                  Button btnReset = new Button(this);
-                  btnReset.setText("MULAI BARU");
-                  btnReset.setTextColor(Color.WHITE);
-                  styleButton(btnReset, "#EF4444");
-                  root.addView(btnReset);
+                  // STOP SECTION
+                  View v = new View(this); root.addView(v, new LinearLayout.LayoutParams(1, 50));
+                  Button bStop = new Button(this); bStop.setText("MATIKAN SUARA"); styleBtn(bStop, "#EF4444");
+                  root.addView(bStop);
 
-                  TextView wm = new TextView(this);
-                  wm.setText("\nPowered by Rycl");
-                  wm.setTextColor(Color.parseColor("#475569"));
-                  wm.setGravity(Gravity.CENTER);
-                  root.addView(wm);
-
-                  btnStartPause.setOnClickListener(v -> {
-                      if (!isRunning) {
-                          long ms = (timeLeft > 0) ? timeLeft : (inT.getText().toString().isEmpty() ? 0 : Long.parseLong(inT.getText().toString()) * 60000);
-                          if (ms > 0) {
-                              startTimer(ms);
-                              btnStartPause.setText("PAUSE");
-                              styleButton(btnStartPause, "#F59E0B");
-                          }
-                      } else {
-                          timer.cancel();
-                          isRunning = false;
-                          btnStartPause.setText("RESUME");
-                          styleButton(btnStartPause, "#10B981");
+                  bT.setOnClickListener(v1 -> {
+                      if(!timerRunning) {
+                          long h = getVal(inTH)*3600000; long m = getVal(inTM)*60000; long s = getVal(inTS)*1000;
+                          long total = h + m + s;
+                          if(total > 0) startT(total);
                       }
                   });
 
-                  btnReset.setOnClickListener(v -> {
-                      if (timer != null) timer.cancel();
-                      if (AlarmReceiver.r != null) AlarmReceiver.r.stop();
-                      isRunning = false; timeLeft = 0;
-                      tvTimer.setText("00:00"); inT.setText("");
-                      btnStartPause.setText("START");
-                      styleButton(btnStartPause, "#0EA5E9");
+                  bA.setOnClickListener(v1 -> {
+                      Calendar c = Calendar.getInstance();
+                      c.set(Calendar.HOUR_OF_DAY, (int)getVal(inAH));
+                      c.set(Calendar.MINUTE, (int)getVal(inAM));
+                      c.set(Calendar.SECOND, 0);
+                      long diff = c.getTimeInMillis() - System.currentTimeMillis();
+                      if(diff < 0) diff += 24*3600000;
+                      setSysAlarm(diff);
                   });
 
-                  setContentView(root);
+                  bStop.setOnClickListener(v1 -> stopSound());
+
+                  setContentView(scroll);
               }
 
-              private void startTimer(long ms) {
-                  isRunning = true;
-                  timer = new CountDownTimer(ms, 1000) {
+              @Override
+              protected void onResume() { super.onResume(); stopSound(); }
+
+              private void stopSound() { if(AlarmReceiver.r != null) AlarmReceiver.r.stop(); }
+
+              private long getVal(EditText e) {
+                  String s = e.getText().toString();
+                  return s.isEmpty() ? 0 : Long.parseLong(s);
+              }
+
+              private void startT(long ms) {
+                  timerRunning = true;
+                  cdt = new CountDownTimer(ms, 1000) {
                       public void onTick(long l) {
-                          timeLeft = l;
-                          tvTimer.setText(String.format("%02d:%02d", (int)(l/60000), (int)(l%60000)/1000));
+                          int h=(int)(l/3600000); int m=(int)((l%3600000)/60000); int s=(int)((l%60000)/1000);
+                          tvTimer.setText(String.format("%02d:%02d:%02d", h, m, s));
                       }
                       public void onFinish() {
-                          isRunning = false; timeLeft = 0;
-                          tvTimer.setText("DONE!");
-                          btnStartPause.setText("START");
-                          styleButton(btnStartPause, "#0EA5E9");
+                          timerRunning = false; tvTimer.setText("SELESAI!");
                           sendBroadcast(new Intent(MainActivity.this, AlarmReceiver.class));
                       }
                   }.start();
               }
 
-              private void styleButton(Button b, String color) {
-                  GradientDrawable gd = new GradientDrawable();
-                  gd.setColor(Color.parseColor(color));
-                  gd.setCornerRadius(30);
-                  b.setBackground(gd);
-                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, 140);
-                  lp.setMargins(0, 10, 0, 10);
+              private void setSysAlarm(long delay) {
+                  AlarmManager am = (AlarmManager) getSystemService(ALARM_SERVICE);
+                  Intent i = new Intent(this, AlarmReceiver.class);
+                  PendingIntent pi = PendingIntent.getBroadcast(this, (int)System.currentTimeMillis(), i, PendingIntent.FLAG_IMMUTABLE);
+                  am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, System.currentTimeMillis() + delay, pi);
+                  Toast.makeText(this, "Alarm dipasang!", 0).show();
+              }
+
+              private void addLabel(LinearLayout l, String t) {
+                  TextView tv = new TextView(this); tv.setText(t); tv.setTextColor(Color.GRAY);
+                  l.addView(tv);
+              }
+
+              private EditText addInput(LinearLayout l, String hint) {
+                  EditText e = new EditText(this); e.setHint(hint); e.setHintTextColor(Color.DKGRAY);
+                  e.setTextColor(Color.WHITE); e.setInputType(2); e.setGravity(Gravity.CENTER);
+                  GradientDrawable gd = new GradientDrawable(); gd.setColor(Color.parseColor("#1E293B")); gd.setCornerRadius(10);
+                  e.setBackground(gd); 
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(180, 120); lp.setMargins(10, 10, 10, 10);
+                  l.addView(e, lp); return e;
+              }
+
+              private void styleBtn(Button b, String c) {
+                  GradientDrawable gd = new GradientDrawable(); gd.setColor(Color.parseColor(c)); gd.setCornerRadius(20);
+                  b.setBackground(gd); b.setTextColor(Color.WHITE);
+                  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, 130); lp.setMargins(0, 20, 0, 10);
                   b.setLayoutParams(lp);
               }
           }
@@ -232,6 +241,6 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: Jam_Rycl_Final_FullStyle
+          name: Jam_Rycl_Ultra_Final
           path: app/build/outputs/apk/debug/*.apk
           
